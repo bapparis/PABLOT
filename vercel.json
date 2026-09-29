@@ -1,6 +1,6 @@
 {
-  "buildCommand": "cd apps/mini-app && npm run build",
-  "outputDirectory": "apps/mini-app/.next",
-  "installCommand": "cd apps/mini-app && npm install",
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "installCommand": "npm install",
   "framework": "nextjs"
 }
