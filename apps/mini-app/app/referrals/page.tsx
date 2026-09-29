@@ -1,3 +1,4 @@
+import BottomNav from "@/components/BottomNav";
 export default function ReferralsPage() {
   return (
     <main className="min-h-screen px-4 pb-28 pt-5">
@@ -107,27 +108,7 @@ export default function ReferralsPage() {
 
       </div>
 
-      <nav className="floating-nav fixed bottom-4 left-1/2 z-50 flex w-[calc(100%-32px)] max-w-md -translate-x-1/2 items-center justify-around rounded-[24px] px-3 py-2">
-        <a href="/" className="nav-link">
-          <span>⌂</span>
-          <span>Home</span>
-        </a>
-
-        <a href="/tasks" className="nav-link">
-          <span>✓</span>
-          <span>Tasks</span>
-        </a>
-
-        <a href="/referrals" className="nav-link active-nav">
-          <span>🎁</span>
-          <span>Refer</span>
-        </a>
-
-        <a href="/profile" className="nav-link">
-          <span>◉</span>
-          <span>Profile</span>
-        </a>
-      </nav>
+      <BottomNav />
     </main>
   );
 }

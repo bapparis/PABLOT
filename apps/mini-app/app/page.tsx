@@ -1,3 +1,4 @@
+import BottomNav from "@/components/BottomNav";
 export default function Home() {
   return (
     <main className="min-h-screen px-4 pb-28 pt-5">
@@ -128,12 +129,7 @@ export default function Home() {
       </div>
 
       {/* Floating navigation */}
-      <nav className="floating-nav fixed bottom-4 left-1/2 z-50 flex w-[calc(100%-32px)] max-w-md -translate-x-1/2 items-center justify-around rounded-[24px] px-3 py-2">
-        <NavItem icon="⌂" label="Home" active />
-        <NavItem icon="✓" label="Tasks" />
-        <NavItem icon="🎁" label="Refer" />
-        <NavItem icon="◉" label="Profile" />
-      </nav>
+      <BottomNav />
     </main>
   );
 }

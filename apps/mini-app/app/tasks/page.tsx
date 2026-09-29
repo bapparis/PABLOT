@@ -1,3 +1,4 @@
+import BottomNav from "@/components/BottomNav";
 const tasks = [
   {
     icon: "✈️",
@@ -139,39 +140,7 @@ export default function TasksPage() {
       </div>
 
       {/* Floating navigation */}
-      <nav className="floating-nav fixed bottom-4 left-1/2 z-50 flex w-[calc(100%-32px)] max-w-md -translate-x-1/2 items-center justify-around rounded-[24px] px-3 py-2">
-        <a
-          href="/"
-          className="flex min-w-[58px] flex-col items-center gap-1 rounded-2xl px-3 py-2 text-[10px] font-semibold text-white/40"
-        >
-          <span className="text-lg leading-none">⌂</span>
-          <span>Home</span>
-        </a>
-
-        <a
-          href="/tasks"
-          className="flex min-w-[58px] flex-col items-center gap-1 rounded-2xl bg-emerald-400/10 px-3 py-2 text-[10px] font-semibold text-emerald-300"
-        >
-          <span className="text-lg leading-none">✓</span>
-          <span>Tasks</span>
-        </a>
-
-        <a
-          href="/referrals"
-          className="flex min-w-[58px] flex-col items-center gap-1 rounded-2xl px-3 py-2 text-[10px] font-semibold text-white/40"
-        >
-          <span className="text-lg leading-none">🎁</span>
-          <span>Refer</span>
-        </a>
-
-        <a
-          href="/profile"
-          className="flex min-w-[58px] flex-col items-center gap-1 rounded-2xl px-3 py-2 text-[10px] font-semibold text-white/40"
-        >
-          <span className="text-lg leading-none">◉</span>
-          <span>Profile</span>
-        </a>
-      </nav>
+      <BottomNav />
     </main>
   );
 }
