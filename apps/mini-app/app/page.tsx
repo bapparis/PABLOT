@@ -12,6 +12,9 @@ export default function Home() {
     if (typeof Adsgram !== "undefined") {
       adController.current = Adsgram.init({
         blockId: "51135",
+        debug: true,
+        debugConsole: true,
+        debugBannerType: "RewardedVideo",
       });
     }
   }, []);
