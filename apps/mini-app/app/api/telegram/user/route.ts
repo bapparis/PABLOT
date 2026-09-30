@@ -27,10 +27,14 @@ function verifyTelegramInitData(initData: string, botToken: string) {
     .update(dataCheckString)
     .digest("hex");
 
+  const calculatedHashBuffer = Buffer.from(calculatedHash, "hex");
+  const receivedHashBuffer = Buffer.from(hash, "hex");
+
   if (
+    receivedHashBuffer.length !== calculatedHashBuffer.length ||
     !crypto.timingSafeEqual(
-      Buffer.from(calculatedHash),
-      Buffer.from(hash)
+      calculatedHashBuffer,
+      receivedHashBuffer
     )
   ) {
     return null;
