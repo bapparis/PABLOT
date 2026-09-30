@@ -13,11 +13,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body>
         <Script
           src="https://telegram.org/js/telegram-web-app.js"
           strategy="beforeInteractive"
+        />
+
+        <Script
+          src="https://sad.adsgram.ai/js/sad.min.js"
+          strategy="afterInteractive"
         />
         {children}
       </body>

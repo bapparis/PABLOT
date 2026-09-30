@@ -1,5 +1,36 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
 import BottomNav from "@/components/BottomNav";
+
 export default function Home() {
+  const adController = useRef<AdsgramAdController | null>(null);
+  const [adLoading, setAdLoading] = useState(false);
+  const [adMessage, setAdMessage] = useState("");
+
+  useEffect(() => {
+    if (typeof Adsgram !== "undefined") {
+      adController.current = Adsgram.init({
+        blockId: "51135",
+      });
+    }
+  }, []);
+
+  const handleWatchAd = async () => {
+    if (!adController.current || adLoading) return;
+
+    setAdLoading(true);
+    setAdMessage("");
+
+    try {
+      await adController.current.show();
+      setAdMessage("✅ Ad completed successfully.");
+    } catch {
+      setAdMessage("Ad was skipped or could not be completed.");
+    } finally {
+      setAdLoading(false);
+    }
+  };
   return (
     <main className="min-h-screen px-4 pb-28 pt-5">
       <div className="mx-auto w-full max-w-md">
@@ -46,6 +77,58 @@ export default function Home() {
               0 PP
             </span>
           </div>
+        </section>
+
+        {/* Daily Check */}
+        <section className="glass-panel mt-4 overflow-hidden rounded-[24px] p-5">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-300">
+                DAILY CHECK-IN
+              </p>
+              <h2 className="mt-1.5 text-lg font-black">
+                Complete your daily check
+              </h2>
+              <p className="mt-1 text-xs text-white/45">
+                Watch 3 ads to complete today’s check.
+              </p>
+            </div>
+
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-400/10 text-xl">
+              🎁
+            </div>
+          </div>
+
+          <div className="mt-5 flex items-center gap-2">
+            <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/8">
+              <div className="h-full w-0 rounded-full bg-emerald-400 transition-all" />
+            </div>
+
+            <span className="text-xs font-bold text-white/55">
+              0 / 3
+            </span>
+          </div>
+
+          <div className="mt-4 grid grid-cols-3 gap-2">
+            <div className="h-1.5 rounded-full bg-white/10" />
+            <div className="h-1.5 rounded-full bg-white/10" />
+            <div className="h-1.5 rounded-full bg-white/10" />
+          </div>
+
+          <button
+            type="button"
+            onClick={handleWatchAd}
+            disabled={adLoading}
+            className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-400 px-4 py-3 text-sm font-black text-black transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {adLoading ? "Loading Ad..." : "▶ Watch Ads & Check In"}
+          </button>
+
+          {adMessage && (
+            <p className="mt-2 text-center text-[11px] font-semibold text-white/45">
+              {adMessage}
+            </p>
+          )}
         </section>
 
         {/* Daily progress */}
