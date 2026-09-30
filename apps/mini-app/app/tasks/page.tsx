@@ -198,10 +198,9 @@ export default function TasksPage() {
           );
         }
 
-        if (
-          response.status === 409
-        ) {
+        if (response.status === 409) {
           markTaskCompleted(task.id);
+
           throw new Error(
             "This task was already completed."
           );
@@ -278,66 +277,62 @@ export default function TasksPage() {
 
   function getButtonLabel(task: Task) {
     if (completedTaskIds.includes(task.id)) {
-      return "✓ Completed";
+      return "✓";
     }
 
-    if (
-      processingTaskId === task.id
-    ) {
-      return "Verifying...";
+    if (processingTaskId === task.id) {
+      return "...";
     }
 
-    if (
-      task.type === "join_channel"
-    ) {
+    if (task.type === "join_channel") {
       return startedTaskIds.includes(task.id)
-        ? "Verify & Earn"
-        : "Join & Earn";
+        ? "Verify"
+        : "Join";
     }
 
     if (task.type === "watch") {
-      return "Watch & Claim";
+      return "Watch";
     }
 
     if (task.type === "visit") {
-      return "Visit & Claim";
+      return "Visit";
     }
 
     if (
       task.type === "follow" ||
       task.type === "social"
     ) {
-      return "Follow & Verify";
+      return "Follow";
     }
 
-    return "Complete";
+    return "Go";
   }
 
   return (
     <main className="min-h-screen bg-[#080d14] pb-28 text-white">
       <div className="mx-auto max-w-md px-4 pt-7">
         <header className="mb-5">
-          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#b8f34a]">
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#b8f34a]">
             EARN MORE
           </p>
 
-          <h1 className="mt-1.5 text-2xl font-black tracking-tight">
+          <h1 className="mt-1 text-2xl font-black tracking-tight">
             Tasks
           </h1>
 
-          <p className="mt-1 text-sm text-white/50">
+          <p className="mt-1 text-xs text-white/45">
             Complete tasks and earn Pablot Points.
           </p>
         </header>
 
-        <section className="mb-5 rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-3.5 shadow-lg">
+        <section className="mb-5 rounded-2xl border border-white/10 bg-white/[0.045] px-4 py-3">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-white/35">
+              <p className="text-[9px] font-semibold uppercase tracking-wider text-white/35">
                 Daily progress
               </p>
 
-              <p className="mt-0.5 text-xl font-black">
+              <p className="mt-0.5 text-lg font-black">
                 {completedTaskIds.length}
                 <span className="text-white/25">
                   /10
@@ -346,11 +341,11 @@ export default function TasksPage() {
             </div>
 
             <div className="text-right">
-              <p className="text-[10px] text-white/35">
+              <p className="text-[9px] text-white/35">
                 Completed
               </p>
 
-              <p className="mt-0.5 text-lg font-black text-[#b8f34a]">
+              <p className="mt-0.5 text-base font-black text-[#b8f34a]">
                 {Math.min(
                   completedTaskIds.length * 10,
                   100
@@ -360,7 +355,7 @@ export default function TasksPage() {
             </div>
           </div>
 
-          <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-white/10">
+          <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/10">
             <div
               className="h-full rounded-full bg-[#b8f34a] transition-all duration-500"
               style={{
@@ -374,27 +369,27 @@ export default function TasksPage() {
         </section>
 
         {error && (
-          <div className="mb-4 rounded-xl border border-red-400/20 bg-red-400/10 px-3.5 py-2.5 text-xs leading-5 text-red-200">
+          <div className="mb-4 rounded-xl border border-red-400/20 bg-red-400/10 px-3 py-2 text-xs leading-4 text-red-200">
             {error}
           </div>
         )}
 
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-base font-bold">
+          <h2 className="text-sm font-bold">
             Available Tasks
           </h2>
 
-          <span className="rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-semibold text-white/50">
-            {tasks.length} tasks
+          <span className="rounded-full bg-white/10 px-2 py-1 text-[9px] font-semibold text-white/45">
+            {tasks.length}
           </span>
         </div>
 
         {loading ? (
-          <div className="space-y-3">
+          <div className="space-y-2">
             {[1, 2, 3].map((item) => (
               <div
                 key={item}
-                className="h-28 animate-pulse rounded-2xl border border-white/5 bg-white/[0.035]"
+                className="h-20 animate-pulse rounded-2xl border border-white/5 bg-white/[0.035]"
               />
             ))}
           </div>
@@ -407,73 +402,62 @@ export default function TasksPage() {
             </p>
 
             <p className="mt-1 text-xs text-white/40">
-              Check back soon for new earning opportunities.
+              Check back soon.
             </p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2">
             {tasks.map((task) => (
               <article
                 key={task.id}
-                className="rounded-2xl border border-white/10 bg-white/[0.045] p-3.5 shadow-md transition-transform duration-200 active:scale-[0.99]"
+                className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.045] px-3 py-2.5 shadow-md"
               >
-                <div className="flex gap-3">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/10 text-lg">
-                    {taskIcons[task.type] ?? "⚡"}
-                  </div>
-
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <h3 className="truncate text-sm font-bold">
-                          {task.title}
-                        </h3>
-
-                        <p className="mt-0.5 text-[10px] text-white/35">
-                          {taskLabels[task.type] ??
-                            "Task"}
-                        </p>
-                      </div>
-
-                      <div className="shrink-0 rounded-full bg-[#b8f34a]/10 px-2 py-0.5 text-[10px] font-black text-[#b8f34a]">
-                        +{task.reward_pp}
-                      </div>
-                    </div>
-
-                    <p className="mt-2 line-clamp-2 text-xs leading-4 text-white/50">
-                      {task.description}
-                    </p>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        handleTask(task)
-                      }
-                      disabled={
-                        processingTaskId !== null ||
-                        completedTaskIds.includes(
-                          task.id
-                        )
-                      }
-                      className={`mt-3 w-full rounded-xl px-3 py-2 text-xs font-bold transition ${
-                        completedTaskIds.includes(
-                          task.id
-                        )
-                          ? "bg-white/10 text-white/35"
-                          : "bg-[#b8f34a] text-[#071008] active:scale-[0.98]"
-                      } disabled:cursor-not-allowed`}
-                    >
-                      {getButtonLabel(task)}
-                    </button>
-                  </div>
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/10 text-base">
+                  {taskIcons[task.type] ?? "⚡"}
                 </div>
+
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <h3 className="truncate text-xs font-bold">
+                      {task.title}
+                    </h3>
+
+                    <span className="shrink-0 text-[9px] font-black text-[#b8f34a]">
+                      +{task.reward_pp}
+                    </span>
+                  </div>
+
+                  <p className="mt-0.5 truncate text-[10px] text-white/35">
+                    {task.description}
+                  </p>
+
+                  <p className="mt-0.5 text-[9px] text-white/25">
+                    {taskLabels[task.type] ?? "Task"}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleTask(task)}
+                  disabled={
+                    processingTaskId !== null ||
+                    completedTaskIds.includes(task.id)
+                  }
+                  className={`shrink-0 rounded-lg px-2.5 py-1.5 text-[10px] font-bold transition active:scale-95 ${
+                    completedTaskIds.includes(task.id)
+                      ? "bg-white/10 text-white/35"
+                      : "bg-[#b8f34a] text-[#071008]"
+                  } disabled:cursor-not-allowed`}
+                >
+                  {getButtonLabel(task)}
+                </button>
               </article>
             ))}
           </div>
         )}
 
         <section className="mt-7">
-          <h2 className="mb-3 text-base font-bold">
+          <h2 className="mb-3 text-sm font-bold">
             Completed Tasks
           </h2>
 
