@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import BottomNav from "@/components/BottomNav";
 import { initTelegramWebApp } from "@/lib/telegram";
 
@@ -42,6 +42,22 @@ export default function TasksPage() {
   const [startedTaskIds, setStartedTaskIds] =
     useState<string[]>([]);
   const [error, setError] = useState("");
+
+  const availableTasks = useMemo(
+    () =>
+      tasks.filter(
+        (task) => !completedTaskIds.includes(task.id)
+      ),
+    [tasks, completedTaskIds]
+  );
+
+  const completedTasks = useMemo(
+    () =>
+      tasks.filter((task) =>
+        completedTaskIds.includes(task.id)
+      ),
+    [tasks, completedTaskIds]
+  );
 
   async function loadTasks() {
     try {
@@ -101,8 +117,9 @@ export default function TasksPage() {
   useEffect(() => {
     loadTasks();
 
-    const saved =
-      sessionStorage.getItem("pablot_started_tasks");
+    const saved = sessionStorage.getItem(
+      "pablot_started_tasks"
+    );
 
     if (saved) {
       try {
@@ -374,13 +391,13 @@ export default function TasksPage() {
           </div>
         )}
 
-        <div className="mb-3 flex items-center justify-between">
+        <div className="mb-3 flex items-center justify-between border-b border-white/10 pb-2">
           <h2 className="text-sm font-bold">
             Available Tasks
           </h2>
 
-          <span className="rounded-full bg-white/10 px-2 py-1 text-[9px] font-semibold text-white/45">
-            {tasks.length}
+          <span className="text-xs font-bold text-white/40">
+            {availableTasks.length}
           </span>
         </div>
 
@@ -393,21 +410,21 @@ export default function TasksPage() {
               />
             ))}
           </div>
-        ) : tasks.length === 0 ? (
-          <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-5 text-center">
-            <div className="text-2xl">✨</div>
+        ) : availableTasks.length === 0 ? (
+          <div className="rounded-2xl border border-[#b8f34a]/15 bg-[#b8f34a]/[0.035] p-5 text-center">
+            <div className="text-2xl">🎉</div>
 
             <p className="mt-2 text-sm font-semibold">
-              No tasks available
+              All tasks completed!
             </p>
 
             <p className="mt-1 text-xs text-white/40">
-              Check back soon.
+              Check back later for new tasks.
             </p>
           </div>
         ) : (
           <div className="space-y-2">
-            {tasks.map((task) => (
+            {availableTasks.map((task) => (
               <article
                 key={task.id}
                 className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.045] px-3 py-2.5 shadow-md"
@@ -440,14 +457,9 @@ export default function TasksPage() {
                   type="button"
                   onClick={() => handleTask(task)}
                   disabled={
-                    processingTaskId !== null ||
-                    completedTaskIds.includes(task.id)
+                    processingTaskId !== null
                   }
-                  className={`shrink-0 rounded-lg px-2.5 py-1.5 text-[10px] font-bold transition active:scale-95 ${
-                    completedTaskIds.includes(task.id)
-                      ? "bg-white/10 text-white/35"
-                      : "bg-[#b8f34a] text-[#071008]"
-                  } disabled:cursor-not-allowed`}
+                  className="shrink-0 rounded-lg bg-[#b8f34a] px-2.5 py-1.5 text-[10px] font-bold text-[#071008] transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {getButtonLabel(task)}
                 </button>
@@ -457,28 +469,48 @@ export default function TasksPage() {
         )}
 
         <section className="mt-7">
-          <h2 className="mb-3 text-sm font-bold">
-            Completed Tasks
-          </h2>
+          <div className="mb-3 flex items-center justify-between border-b border-white/10 pb-2">
+            <h2 className="text-sm font-bold">
+              Completed Tasks
+            </h2>
 
-          {completedTaskIds.length === 0 ? (
+            <span className="text-xs font-bold text-[#b8f34a]">
+              {completedTasks.length}
+            </span>
+          </div>
+
+          {completedTasks.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.025] p-4 text-center">
               <p className="text-xs text-white/35">
                 Your completed tasks will appear here.
               </p>
             </div>
           ) : (
-            <div className="rounded-2xl border border-[#b8f34a]/10 bg-[#b8f34a]/[0.035] p-4">
-              <p className="text-xs text-white/55">
-                You've completed{" "}
-                <span className="font-bold text-[#b8f34a]">
-                  {completedTaskIds.length}
-                </span>{" "}
-                task
-                {completedTaskIds.length === 1
-                  ? ""
-                  : "s"}.
-              </p>
+            <div className="space-y-2">
+              {completedTasks.map((task) => (
+                <article
+                  key={task.id}
+                  className="flex items-center gap-3 rounded-2xl border border-[#b8f34a]/10 bg-[#b8f34a]/[0.035] px-3 py-2.5"
+                >
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#b8f34a]/10 text-base">
+                    {taskIcons[task.type] ?? "⚡"}
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <h3 className="truncate text-xs font-bold text-white/70">
+                      {task.title}
+                    </h3>
+
+                    <p className="mt-0.5 text-[9px] text-white/30">
+                      Completed • +{task.reward_pp} PP
+                    </p>
+                  </div>
+
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#b8f34a]/10 text-xs font-black text-[#b8f34a]">
+                    ✓
+                  </div>
+                </article>
+              ))}
             </div>
           )}
         </section>
