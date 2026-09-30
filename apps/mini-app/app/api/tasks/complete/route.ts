@@ -2,7 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
 
-function verifyTelegramInitData(initData: string, botToken: string) {
+interface TelegramUser {
+  id: number;
+  first_name: string;
+  last_name?: string;
+  username?: string;
+}
+
+function verifyTelegramInitData(
+  initData: string,
+  botToken: string
+): TelegramUser | null {
   const params = new URLSearchParams(initData);
   const hash = params.get("hash");
 
@@ -27,8 +37,15 @@ function verifyTelegramInitData(initData: string, botToken: string) {
     .update(dataCheckString)
     .digest("hex");
 
-  const calculatedHashBuffer = Buffer.from(calculatedHash, "hex");
-  const receivedHashBuffer = Buffer.from(hash, "hex");
+  const calculatedHashBuffer = Buffer.from(
+    calculatedHash,
+    "hex"
+  );
+
+  const receivedHashBuffer = Buffer.from(
+    hash,
+    "hex"
+  );
 
   if (
     receivedHashBuffer.length !== calculatedHashBuffer.length ||
@@ -42,7 +59,10 @@ function verifyTelegramInitData(initData: string, botToken: string) {
 
   const authDate = Number(params.get("auth_date"));
 
-  if (!authDate || Date.now() / 1000 - authDate > 86400) {
+  if (
+    !authDate ||
+    Math.abs(Date.now() / 1000 - authDate) > 86400
+  ) {
     return null;
   }
 
@@ -53,10 +73,63 @@ function verifyTelegramInitData(initData: string, botToken: string) {
   }
 
   try {
-    return JSON.parse(userRaw);
+    return JSON.parse(userRaw) as TelegramUser;
   } catch {
     return null;
   }
+}
+
+async function verifyChannelMembership(
+  botToken: string,
+  telegramUserId: number,
+  targetUrl: string | null
+) {
+  if (!targetUrl) {
+    return false;
+  }
+
+  let username = "";
+
+  try {
+    const url = new URL(targetUrl);
+
+    if (url.hostname !== "t.me") {
+      return false;
+    }
+
+    username = url.pathname
+      .replace(/^\/+/, "")
+      .split("/")[0]
+      .replace(/^@/, "");
+  } catch {
+    return false;
+  }
+
+  if (!username) {
+    return false;
+  }
+
+  const response = await fetch(
+    `https://api.telegram.org/bot${botToken}/getChatMember?chat_id=@${encodeURIComponent(username)}&user_id=${telegramUserId}`,
+    {
+      cache: "no-store",
+    }
+  );
+
+  const data = await response.json();
+
+  if (!data.ok) {
+    return false;
+  }
+
+  const status = data.result?.status;
+
+  return (
+    status === "creator" ||
+    status === "administrator" ||
+    status === "member" ||
+    status === "restricted"
+  );
 }
 
 export async function POST(request: NextRequest) {
@@ -80,9 +153,14 @@ export async function POST(request: NextRequest) {
 
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY;
+    const supabaseSecretKey =
+      process.env.SUPABASE_SECRET_KEY;
 
-    if (!botToken || !supabaseUrl || !supabaseSecretKey) {
+    if (
+      !botToken ||
+      !supabaseUrl ||
+      !supabaseSecretKey
+    ) {
       return NextResponse.json(
         { error: "Server configuration is incomplete." },
         { status: 500 }
@@ -94,7 +172,10 @@ export async function POST(request: NextRequest) {
       botToken
     );
 
-    if (!telegramUser?.id || !telegramUser.first_name) {
+    if (
+      !telegramUser?.id ||
+      !telegramUser.first_name
+    ) {
       return NextResponse.json(
         { error: "Invalid Telegram authentication data." },
         { status: 401 }
@@ -106,11 +187,54 @@ export async function POST(request: NextRequest) {
       supabaseSecretKey
     );
 
-    const { data: user, error: userError } = await supabase
-      .from("users")
-      .select("id")
-      .eq("telegram_id", telegramUser.id)
-      .maybeSingle();
+    const { data: task, error: taskError } =
+      await supabase
+        .from("tasks")
+        .select(
+          "id, title, type, reward_pp, target_url, active"
+        )
+        .eq("id", taskId)
+        .maybeSingle();
+
+    if (taskError) {
+      return NextResponse.json(
+        { error: taskError.message },
+        { status: 500 }
+      );
+    }
+
+    if (!task || !task.active) {
+      return NextResponse.json(
+        { error: "Task is not available." },
+        { status: 404 }
+      );
+    }
+
+    if (task.type === "join_channel") {
+      const isMember = await verifyChannelMembership(
+        botToken,
+        telegramUser.id,
+        task.target_url
+      );
+
+      if (!isMember) {
+        return NextResponse.json(
+          {
+            error:
+              "You have not joined the required Telegram channel yet.",
+            code: "NOT_A_MEMBER",
+          },
+          { status: 403 }
+        );
+      }
+    }
+
+    const { data: user, error: userError } =
+      await supabase
+        .from("users")
+        .select("id")
+        .eq("telegram_id", telegramUser.id)
+        .maybeSingle();
 
     if (userError) {
       return NextResponse.json(
@@ -135,21 +259,33 @@ export async function POST(request: NextRequest) {
     );
 
     if (error) {
-      if (error.message.includes("TASK_NOT_AVAILABLE")) {
+      if (
+        error.message.includes(
+          "TASK_NOT_AVAILABLE"
+        )
+      ) {
         return NextResponse.json(
           { error: "Task is not available." },
           { status: 404 }
         );
       }
 
-      if (error.message.includes("TASK_ALREADY_COMPLETED")) {
+      if (
+        error.message.includes(
+          "TASK_ALREADY_COMPLETED"
+        )
+      ) {
         return NextResponse.json(
           { error: "Task already completed." },
           { status: 409 }
         );
       }
 
-      if (error.message.includes("USER_NOT_FOUND")) {
+      if (
+        error.message.includes(
+          "USER_NOT_FOUND"
+        )
+      ) {
         return NextResponse.json(
           { error: "PABLOT account not found." },
           { status: 404 }
@@ -162,7 +298,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result = Array.isArray(data) ? data[0] : data;
+    const result = Array.isArray(data)
+      ? data[0]
+      : data;
 
     return NextResponse.json({
       success: true,
