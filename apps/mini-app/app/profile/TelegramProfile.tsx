@@ -4,49 +4,107 @@ import { useEffect, useState } from "react";
 import { initTelegramWebApp } from "@/lib/telegram";
 
 interface User {
-  id: number;
+  id: string;
+  telegram_id: number;
+  pablot_id: string;
+  username: string | null;
   first_name: string;
-  last_name?: string;
-  username?: string;
-  photo_url?: string;
+  last_name: string | null;
+  photo_url: string | null;
+  pp_balance: number;
+  total_earned: number;
+  language: "en" | "fr";
+  notifications_enabled: boolean;
 }
 
 export default function TelegramProfile() {
   const [user, setUser] = useState<User | null>(null);
-  const [isTelegram, setIsTelegram] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    const webApp = initTelegramWebApp();
+    async function loadUser() {
+      try {
+        const webApp = initTelegramWebApp();
 
-    if (!webApp) {
-      return;
+        if (!webApp?.initData) {
+          setError("Open PABLOT from Telegram.");
+          return;
+        }
+
+        const response = await fetch("/api/telegram/user", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            initData: webApp.initData,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            data?.error || "Unable to load your PABLOT account."
+          );
+        }
+
+        setUser(data.user);
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Unable to load your PABLOT account."
+        );
+      } finally {
+        setLoading(false);
+      }
     }
 
-    setIsTelegram(true);
-
-    if (webApp.initDataUnsafe.user) {
-      setUser(webApp.initDataUnsafe.user);
-    }
+    loadUser();
   }, []);
 
-  const displayName = user
-    ? [user.first_name, user.last_name].filter(Boolean).join(" ")
-    : "Telegram User";
+  if (loading) {
+    return (
+      <section className="balance-card rounded-[28px] p-6">
+        <div className="animate-pulse">
+          <div className="h-20 w-20 rounded-full bg-white/10" />
 
-  const username = user?.username
+          <div className="mt-4 h-5 w-40 rounded bg-white/10" />
+
+          <div className="mt-2 h-4 w-28 rounded bg-white/10" />
+        </div>
+      </section>
+    );
+  }
+
+  if (error || !user) {
+    return (
+      <section className="balance-card rounded-[28px] p-6">
+        <p className="text-sm font-semibold text-red-300">
+          {error || "Unable to load your PABLOT account."}
+        </p>
+      </section>
+    );
+  }
+
+  const displayName = [user.first_name, user.last_name]
+    .filter(Boolean)
+    .join(" ");
+
+  const username = user.username
     ? `@${user.username}`
     : "No username";
-
-  const avatar = user?.photo_url;
 
   return (
     <section className="balance-card relative overflow-hidden rounded-[28px] p-6">
       <div className="absolute -right-16 -top-16 h-44 w-44 rounded-full bg-emerald-400/10 blur-3xl" />
 
       <div className="relative flex items-center gap-4">
-        {avatar ? (
+        {user.photo_url ? (
           <img
-            src={avatar}
+            src={user.photo_url}
             alt={displayName}
             className="h-20 w-20 shrink-0 rounded-full border border-white/10 object-cover shadow-xl"
           />
@@ -66,7 +124,7 @@ export default function TelegramProfile() {
           </p>
 
           <div className="mt-2 inline-flex rounded-full bg-emerald-400/10 px-2.5 py-1 text-[10px] font-bold text-emerald-300">
-            {isTelegram ? "TELEGRAM MEMBER" : "PREVIEW MODE"}
+            TELEGRAM MEMBER
           </div>
         </div>
       </div>
@@ -78,7 +136,7 @@ export default function TelegramProfile() {
           </span>
 
           <span className="text-sm font-black tracking-wider">
-            PB-{user ? String(user.id).slice(-6).padStart(6, "0") : "123456"}
+            {user.pablot_id}
           </span>
         </div>
       </div>
