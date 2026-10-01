@@ -73,32 +73,48 @@ export default function Home() {
 
       setDailyLoading(true);
 
-      const response = await fetch("/api/daily-check", {
-        method: "POST",
-        headers: {
-          "x-telegram-init-data": initData,
-        },
-      });
+      let confirmed = false;
 
-      const data = await response.json();
+      for (let attempt = 0; attempt < 6; attempt++) {
+        const response = await fetch("/api/daily-check", {
+          method: "POST",
+          headers: {
+            "x-telegram-init-data": initData,
+          },
+        });
 
-      if (!response.ok) {
-        setAdMessage("Reward confirmation is still pending.");
-        return;
+        const data = await response.json();
+
+        if (response.ok && data.status === "CLAIMED") {
+          confirmed = true;
+
+          setDailyAdsCompleted(data.ads_completed ?? 0);
+          setDailyRewardClaimed(data.reward_granted ?? false);
+
+          if (data.reward_granted) {
+            setAdMessage("🎉 Daily Check complete! +100 PP");
+          } else if ((data.ads_completed ?? 0) < 3) {
+            setAdMessage(
+              `✅ Reward confirmed. ${data.ads_completed}/3 ads completed.`
+            );
+          } else {
+            setAdMessage("✅ Daily Check completed.");
+          }
+
+          break;
+        }
+
+        if (attempt < 5) {
+          await new Promise((resolve) => setTimeout(resolve, 1500));
+        }
       }
 
-      setDailyAdsCompleted(data.ads_completed ?? 0);
-      setDailyRewardClaimed(data.reward_granted ?? false);
-
-      if (data.reward_granted) {
-        setAdMessage("🎉 Daily Check complete! +100 PP");
-      } else if ((data.ads_completed ?? 0) < 3) {
+      if (!confirmed) {
         setAdMessage(
-          `✅ Reward confirmed. ${data.ads_completed}/3 ads completed.`
+          "⏳ Ad completed. Waiting for AdsGram reward confirmation..."
         );
-      } else {
-        setAdMessage("✅ Daily Check completed.");
       }
+
     } catch {
       setAdMessage("Ad was skipped or could not be completed.");
     } finally {
