@@ -95,7 +95,7 @@ export default function Home() {
 
       let confirmed = false;
 
-      for (let attempt = 0; attempt < 6; attempt++) {
+      for (let attempt = 0; attempt < 20; attempt++) {
         const response = await fetch("/api/monetag/claim", {
           method: "POST",
           headers: {
@@ -124,8 +124,8 @@ export default function Home() {
           break;
         }
 
-        if (attempt < 5) {
-          await new Promise((resolve) => setTimeout(resolve, 1500));
+        if (attempt < 19) {
+          await new Promise((resolve) => setTimeout(resolve, 2000));
         }
       }
 
