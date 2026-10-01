@@ -278,50 +278,23 @@ export default function Home() {
         </section>
 
         {/* Daily Check */}
-        <section className="glass-panel mt-4 overflow-hidden rounded-[24px] p-5">
-          <div className="flex items-start justify-between gap-4">
+        <section className="glass-panel mt-4 rounded-[20px] p-4">
+          <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-emerald-300">
+              <p className="text-[9px] font-black uppercase tracking-[0.16em] text-emerald-300">
                 DAILY CHECK-IN
               </p>
-              <h2 className="mt-1.5 text-lg font-black">
-                Build your streak
-              </h2>
-              <p className="mt-1 text-xs text-white/45">
-                Check in once every day to keep your streak alive.
+              <p className="mt-1 text-sm font-black">
+                Day {Math.min(streakDay, 7)} streak
               </p>
             </div>
 
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-400/10 text-xl">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-400/10 text-base">
               🔥
             </div>
           </div>
 
-          <div className="mt-5 flex items-center justify-between">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/35">
-                CURRENT STREAK
-              </p>
-              <p className="mt-1 text-2xl font-black">
-                Day {Math.min(streakDay, 7)}
-              </p>
-            </div>
-
-            <div className="text-right">
-              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/35">
-                TREASURE
-              </p>
-              <p className="mt-1 text-xs font-bold text-white/55">
-                {treasureClaimed
-                  ? "Opened"
-                  : treasureUnlocked
-                    ? "Unlocked"
-                    : `${Math.max(0, 7 - streakDay)} day${7 - streakDay === 1 ? "" : "s"} left`}
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-4 grid grid-cols-7 gap-1.5">
+          <div className="mt-3 grid grid-cols-7 gap-1.5">
             {[1, 2, 3, 4, 5, 6, 7].map((day) => (
               <div
                 key={day}
@@ -334,34 +307,46 @@ export default function Home() {
             ))}
           </div>
 
-          <button
-            type="button"
-            onClick={handleDailyCheckIn}
-            disabled={dailyLoading || checkedInToday}
-            className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-400 px-4 py-3 text-sm font-black text-black transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {checkedInToday
-              ? "✅ CHECKED"
-              : dailyLoading
-                ? "CHECKING..."
-                : "CHECK-IN"}
-          </button>
+          <p className="mt-2 text-center text-[10px] text-white/35">
+            {treasureClaimed
+              ? "Treasure opened"
+              : treasureUnlocked
+                ? "🎁 Treasure unlocked"
+                : "7-day streak unlocks a Treasure Box"}
+          </p>
 
-          {treasureUnlocked && !treasureClaimed && (
+          <div className="mt-3 flex justify-center">
             <button
               type="button"
-              onClick={handleTreasure}
-              disabled={treasureLoading}
-              className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border border-yellow-300/20 bg-yellow-300/10 px-4 py-3 text-sm font-black text-yellow-200 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+              onClick={handleDailyCheckIn}
+              disabled={dailyLoading || checkedInToday}
+              className="rounded-lg bg-emerald-400 px-6 py-2 text-xs font-black text-black transition active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {treasureLoading
-                ? "OPENING..."
-                : "🎁 OPEN TREASURE"}
+              {checkedInToday
+                ? "✅ CHECKED"
+                : dailyLoading
+                  ? "CHECKING..."
+                  : "CHECK-IN"}
             </button>
+          </div>
+
+          {treasureUnlocked && !treasureClaimed && (
+            <div className="mt-2 flex justify-center">
+              <button
+                type="button"
+                onClick={handleTreasure}
+                disabled={treasureLoading}
+                className="rounded-lg border border-yellow-300/20 bg-yellow-300/10 px-5 py-2 text-xs font-black text-yellow-200 transition active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {treasureLoading
+                  ? "OPENING..."
+                  : "🎁 OPEN TREASURE"}
+              </button>
+            </div>
           )}
 
           {adMessage && (
-            <p className="mt-2 text-center text-[11px] font-semibold text-white/45">
+            <p className="mt-2 text-center text-[10px] font-semibold text-white/40">
               {adMessage}
             </p>
           )}
