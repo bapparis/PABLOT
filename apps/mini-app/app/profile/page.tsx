@@ -97,29 +97,6 @@ export default function ProfilePage() {
 
         </section>
 
-        {/* Wallet */}
-        <section className="glass-panel mt-5 rounded-[24px] p-5">
-          <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-400/10 text-xl">
-              💎
-            </div>
-
-            <div className="min-w-0 flex-1">
-              <p className="font-bold">
-                Withdrawal wallet
-              </p>
-
-              <p className="mt-1 text-xs text-white/40">
-                No wallet connected
-              </p>
-            </div>
-
-            <span className="rounded-full bg-white/5 px-3 py-1 text-[10px] font-bold text-white/40">
-              SETUP
-            </span>
-          </div>
-        </section>
-
         {/* Logout */}
         <button className="mt-5 w-full rounded-2xl border border-red-400/10 bg-red-400/5 py-3.5 text-sm font-bold text-red-300 transition active:scale-[0.98]">
           Log out

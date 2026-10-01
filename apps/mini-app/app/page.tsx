@@ -154,12 +154,13 @@ export default function Home() {
             </h1>
           </div>
 
-          <button
+          <a
+            href="/profile"
             className="glass-panel flex h-11 w-11 items-center justify-center rounded-full text-lg"
             aria-label="Profile"
           >
             👤
-          </button>
+          </a>
         </header>
 
         {/* Balance */}
