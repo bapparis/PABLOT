@@ -48,18 +48,26 @@ export default function Home() {
   }, []);
 
   const handleWatchAd = async () => {
-    if (!adController.current || adLoading || dailyLoading) return;
+    if (adLoading || dailyLoading) return;
 
     setAdLoading(true);
     setAdMessage("");
 
     try {
-      const result = await adController.current.show();
+      const monetag = (
+        window as typeof window & {
+          show_11934399?: () => Promise<unknown>;
+        }
+      ).show_11934399;
 
-      if (!result?.done) {
-        setAdMessage("Ad was skipped or could not be completed.");
+      if (!monetag) {
+        setAdMessage("Monetag ad is not ready yet. Please try again.");
         return;
       }
+
+      setAdMessage("📺 Loading rewarded ad...");
+
+      await monetag();
 
       setAdMessage("✅ Ad completed. Confirming reward...");
 
@@ -76,7 +84,7 @@ export default function Home() {
       let confirmed = false;
 
       for (let attempt = 0; attempt < 6; attempt++) {
-        const response = await fetch("/api/daily-check", {
+        const response = await fetch("/api/monetag/claim", {
           method: "POST",
           headers: {
             "x-telegram-init-data": initData,
@@ -111,10 +119,9 @@ export default function Home() {
 
       if (!confirmed) {
         setAdMessage(
-          "⏳ Ad completed. Waiting for AdsGram reward confirmation..."
+          "⏳ Ad completed. Waiting for Monetag reward confirmation..."
         );
       }
-
     } catch {
       setAdMessage("Ad was skipped or could not be completed.");
     } finally {

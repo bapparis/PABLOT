@@ -24,6 +24,13 @@ export default function RootLayout({
           src="https://sad.adsgram.ai/js/sad.min.js"
           strategy="afterInteractive"
         />
+
+        <Script
+          src="//libtl.com/sdk.js"
+          data-zone="11934399"
+          data-sdk="show_11934399"
+          strategy="afterInteractive"
+        />
         {children}
       </body>
     </html>
