@@ -17,6 +17,14 @@ interface Transaction {
   created_at: string;
 }
 
+interface WithdrawalWallet {
+  id: string;
+  network: string;
+  address: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export default function WalletPage() {
   const [user, setUser] = useState<User | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -24,6 +32,18 @@ export default function WalletPage() {
   const [transactionsLoading, setTransactionsLoading] = useState(true);
   const [selectedTransaction, setSelectedTransaction] =
     useState<Transaction | null>(null);
+  const [withdrawalWallet, setWithdrawalWallet] =
+    useState<WithdrawalWallet | null>(null);
+  const [walletSetupOpen, setWalletSetupOpen] =
+    useState(false);
+  const [walletAddress, setWalletAddress] =
+    useState("");
+  const [walletConfirmed, setWalletConfirmed] =
+    useState(false);
+  const [walletSaving, setWalletSaving] =
+    useState(false);
+  const [walletMessage, setWalletMessage] =
+    useState("");
 
   useEffect(() => {
     const loadWallet = async () => {
@@ -76,6 +96,30 @@ export default function WalletPage() {
             transactionData.transactions ?? []
           );
         }
+
+        const walletResponse = await fetch(
+          "/api/wallet",
+          {
+            headers: {
+              "x-telegram-init-data": initData,
+            },
+          }
+        );
+
+        if (walletResponse.ok) {
+          const walletData = await walletResponse.json();
+
+          const bscWallet = (
+            walletData.wallets ?? []
+          ).find(
+            (wallet: WithdrawalWallet) =>
+              wallet.network === "bsc"
+          );
+
+          if (bscWallet) {
+            setWithdrawalWallet(bscWallet);
+          }
+        }
       } catch {
         // Keep the wallet usable even if the request fails.
       } finally {
@@ -89,6 +133,72 @@ export default function WalletPage() {
 
   const balance = user?.pp_balance ?? 0;
   const totalEarned = user?.total_earned ?? 0;
+
+  const handleSaveWallet = async () => {
+    if (walletSaving || !walletConfirmed) return;
+
+    const address = walletAddress.trim();
+
+    if (!/^0x[a-fA-F0-9]{40}$/.test(address)) {
+      setWalletMessage(
+        "Enter a valid BNB Smart Chain (BEP-20) address."
+      );
+      return;
+    }
+
+    try {
+      setWalletSaving(true);
+      setWalletMessage("");
+
+      const initData = window.Telegram?.WebApp?.initData;
+
+      if (!initData) {
+        setWalletMessage(
+          "Telegram session not available."
+        );
+        return;
+      }
+
+      const response = await fetch("/api/wallet", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-telegram-init-data": initData,
+        },
+        body: JSON.stringify({
+          network: "bsc",
+          address,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setWalletMessage(
+          data.error || "Unable to save wallet."
+        );
+        return;
+      }
+
+      setWithdrawalWallet(data.wallet);
+      setWalletSetupOpen(false);
+      setWalletAddress("");
+      setWalletConfirmed(false);
+      setWalletMessage("");
+    } catch {
+      setWalletMessage(
+        "Unable to save wallet. Please try again."
+      );
+    } finally {
+      setWalletSaving(false);
+    }
+  };
+
+  const maskWalletAddress = (address: string) => {
+    if (address.length < 12) return address;
+
+    return `${address.slice(0, 6)}...${address.slice(-6)}`;
+  };
 
   return (
     <main className="min-h-screen px-4 pb-28 pt-5">
@@ -161,23 +271,51 @@ export default function WalletPage() {
         {/* Withdrawal wallet */}
         <section className="glass-panel mt-5 rounded-[24px] p-5">
           <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-400/10 text-xl">
-              💎
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-yellow-400/10 text-xl">
+              🟡
             </div>
 
             <div className="min-w-0 flex-1">
               <p className="font-bold">
-                Withdrawal wallet
+                BNB Smart Chain
               </p>
 
               <p className="mt-1 text-xs text-white/40">
-                No wallet connected
+                {withdrawalWallet
+                  ? maskWalletAddress(
+                      withdrawalWallet.address
+                    )
+                  : "No withdrawal wallet connected"}
               </p>
             </div>
 
-            <button className="rounded-full bg-emerald-400/10 px-3 py-1.5 text-[10px] font-bold text-emerald-300">
-              SETUP
+            <button
+              type="button"
+              onClick={() => {
+                setWalletAddress(
+                  withdrawalWallet?.address ?? ""
+                );
+                setWalletConfirmed(false);
+                setWalletMessage("");
+                setWalletSetupOpen(true);
+              }}
+              className="rounded-full bg-emerald-400/10 px-3 py-1.5 text-[10px] font-bold text-emerald-300"
+            >
+              {withdrawalWallet ? "EDIT" : "SETUP"}
             </button>
+          </div>
+
+          <div className="mt-4 rounded-2xl border border-yellow-400/10 bg-yellow-400/5 p-4">
+            <p className="text-xs font-bold text-yellow-200">
+              ⚠️ Important
+            </p>
+
+            <p className="mt-2 text-[11px] leading-5 text-white/45">
+              Only use a wallet address that supports
+              BNB Smart Chain (BEP-20). Sending funds
+              through the wrong network or to an incorrect
+              address may result in permanent loss.
+            </p>
           </div>
         </section>
 
@@ -250,6 +388,115 @@ export default function WalletPage() {
         </section>
 
       </div>
+
+      {walletSetupOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/75 p-4"
+          onClick={() => {
+            if (!walletSaving) {
+              setWalletSetupOpen(false);
+            }
+          }}
+        >
+          <div
+            className="w-full max-w-sm rounded-[28px] bg-[#0b111b] p-5 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="mx-auto mb-5 h-1.5 w-10 rounded-full bg-white/15" />
+
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-white/30">
+              Withdrawal wallet
+            </p>
+
+            <h2 className="mt-2 text-2xl font-black">
+              BNB Smart Chain
+            </h2>
+
+            <p className="mt-2 text-xs leading-5 text-white/40">
+              Add the wallet address where you want to
+              receive future BNB withdrawals.
+            </p>
+
+            <div className="mt-5 rounded-2xl border border-yellow-400/15 bg-yellow-400/5 p-4">
+              <p className="text-xs font-bold text-yellow-200">
+                ⚠️ Check carefully
+              </p>
+
+              <p className="mt-2 text-[11px] leading-5 text-white/50">
+                Make sure this is your BNB Smart Chain
+                (BEP-20) address. Blockchain transfers
+                cannot normally be reversed after they
+                are sent.
+              </p>
+            </div>
+
+            <label className="mt-5 block text-xs font-bold text-white/45">
+              BNB wallet address
+
+              <input
+                value={walletAddress}
+                onChange={(event) =>
+                  setWalletAddress(event.target.value)
+                }
+                placeholder="0x..."
+                inputMode="text"
+                autoComplete="off"
+                className="mt-2 w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3.5 text-sm font-mono outline-none transition focus:border-emerald-400/40"
+              />
+            </label>
+
+            <label className="mt-4 flex gap-3 rounded-2xl bg-white/[0.03] p-4">
+              <input
+                type="checkbox"
+                checked={walletConfirmed}
+                onChange={(event) =>
+                  setWalletConfirmed(event.target.checked)
+                }
+                className="mt-0.5 h-4 w-4 shrink-0 accent-emerald-400"
+              />
+
+              <span className="text-[11px] leading-5 text-white/50">
+                I confirm that this is my correct
+                <span className="font-bold text-white/75">
+                  {" "}BEP-20 wallet address
+                </span>
+                {" "}and I understand that funds sent to
+                the wrong address or network may be lost.
+              </span>
+            </label>
+
+            {walletMessage && (
+              <p className="mt-3 rounded-xl bg-red-400/5 px-3 py-2 text-xs text-red-300">
+                {walletMessage}
+              </p>
+            )}
+
+            <button
+              type="button"
+              disabled={
+                walletSaving ||
+                !walletConfirmed ||
+                !walletAddress.trim()
+              }
+              onClick={handleSaveWallet}
+              className="mt-5 w-full rounded-2xl bg-emerald-400 py-3.5 text-sm font-black text-black transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-30"
+            >
+              {walletSaving
+                ? "Saving..."
+                : "Save wallet"}
+            </button>
+
+            <button
+              type="button"
+              disabled={walletSaving}
+              onClick={() => setWalletSetupOpen(false)}
+              className="mt-2 w-full rounded-2xl bg-white/5 py-3 text-sm font-bold text-white/70"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {selectedTransaction && (
         <div
