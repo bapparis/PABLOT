@@ -56,7 +56,10 @@ export default function Home() {
     try {
       const monetag = (
         window as typeof window & {
-          show_11934399?: () => Promise<unknown>;
+          show_11934399?: (options?: {
+            ymid?: string;
+            requestVar?: string;
+          }) => Promise<unknown>;
         }
       ).show_11934399;
 
@@ -67,11 +70,20 @@ export default function Home() {
 
       setAdMessage("📺 Loading rewarded ad...");
 
-      await monetag();
+      const webApp = window.Telegram?.WebApp;
+      const telegramId = webApp?.initDataUnsafe?.user?.id;
+
+      const ymid = telegramId
+        ? `pablot_daily_${telegramId}_${Date.now()}_${crypto.randomUUID()}`
+        : `pablot_daily_${Date.now()}_${crypto.randomUUID()}`;
+
+      await monetag({
+        ymid,
+        requestVar: "daily_check",
+      });
 
       setAdMessage("✅ Ad completed. Confirming reward...");
 
-      const webApp = window.Telegram?.WebApp;
       const initData = webApp?.initData;
 
       if (!initData) {

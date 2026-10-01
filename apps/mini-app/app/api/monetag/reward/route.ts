@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  if (rewardEventType !== "yes") {
+  if (rewardEventType !== "valued") {
     return NextResponse.json(
       { ok: false, error: "NOT_A_REWARDED_EVENT" },
       { status: 400 }
