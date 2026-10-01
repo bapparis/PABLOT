@@ -253,15 +253,15 @@ export default function WalletPage() {
 
       {selectedTransaction && (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/75 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/75 p-4"
           onClick={() => setSelectedTransaction(null)}
         >
           <div
-            className="w-full max-w-md overflow-hidden rounded-[30px] bg-[#0b111b] shadow-2xl"
+            className="w-full max-w-sm max-h-[90vh] overflow-y-auto rounded-[28px] bg-[#0b111b] shadow-2xl"
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="p-6">
-              <div className="mx-auto mb-5 h-1.5 w-12 rounded-full bg-white/15" />
+            <div className="p-5">
+              <div className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-white/15" />
 
               <div className="text-center">
                 <p className="text-xs font-black tracking-[0.25em] text-white/35">
@@ -272,7 +272,7 @@ export default function WalletPage() {
                   Transaction receipt
                 </p>
 
-                <div className="mx-auto mt-5 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-400/10 text-2xl text-emerald-300">
+                <div className="mx-auto mt-4 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-400/10 text-xl text-emerald-300">
                   ✓
                 </div>
 
@@ -280,14 +280,14 @@ export default function WalletPage() {
                   Completed
                 </p>
 
-                <p className="mt-1 text-4xl font-black tracking-tight text-emerald-300">
+                <p className="mt-1 text-3xl font-black tracking-tight text-emerald-300">
                   +{selectedTransaction.amount.toLocaleString()} PP
                 </p>
               </div>
 
-              <div className="my-6 border-t border-dashed border-white/10" />
+              <div className="my-4 border-t border-dashed border-white/10" />
 
-              <div className="space-y-1">
+              <div className="space-y-0">
                 <div className="flex justify-between gap-4 py-2.5">
                   <span className="text-xs text-white/35">
                     Description
@@ -339,9 +339,9 @@ export default function WalletPage() {
                 </div>
               </div>
 
-              <div className="my-6 border-t border-dashed border-white/10" />
+              <div className="my-4 border-t border-dashed border-white/10" />
 
-              <p className="text-center text-[10px] text-white/25">
+              <p className="text-center text-[9px] text-white/25">
                 This receipt confirms the transaction recorded in your
                 PABLOT account.
               </p>
