@@ -7,6 +7,9 @@ export default function Home() {
   const adController = useRef<AdsgramAdController | null>(null);
   const [adLoading, setAdLoading] = useState(false);
   const [adMessage, setAdMessage] = useState("");
+  const [dailyAdsCompleted, setDailyAdsCompleted] = useState(0);
+  const [dailyRewardClaimed, setDailyRewardClaimed] = useState(false);
+  const [dailyLoading, setDailyLoading] = useState(false);
 
   useEffect(() => {
     if (typeof Adsgram !== "undefined") {
@@ -16,19 +19,91 @@ export default function Home() {
     }
   }, []);
 
+  const loadDailyCheck = async () => {
+    const webApp = window.Telegram?.WebApp;
+    const initData = webApp?.initData;
+
+    if (!initData) return;
+
+    try {
+      const response = await fetch("/api/daily-check", {
+        headers: {
+          "x-telegram-init-data": initData,
+        },
+      });
+
+      if (!response.ok) return;
+
+      const data = await response.json();
+
+      setDailyAdsCompleted(data.ads_completed ?? 0);
+      setDailyRewardClaimed(data.reward_claimed ?? false);
+    } catch {
+      // Keep the existing UI state if loading fails.
+    }
+  };
+
+  useEffect(() => {
+    loadDailyCheck();
+  }, []);
+
   const handleWatchAd = async () => {
-    if (!adController.current || adLoading) return;
+    if (!adController.current || adLoading || dailyLoading) return;
 
     setAdLoading(true);
     setAdMessage("");
 
     try {
-      await adController.current.show();
-      setAdMessage("✅ Ad completed successfully.");
+      const result = await adController.current.show();
+
+      if (!result?.done) {
+        setAdMessage("Ad was skipped or could not be completed.");
+        return;
+      }
+
+      setAdMessage("✅ Ad completed. Confirming reward...");
+
+      const webApp = window.Telegram?.WebApp;
+      const initData = webApp?.initData;
+
+      if (!initData) {
+        setAdMessage("Telegram session not available.");
+        return;
+      }
+
+      setDailyLoading(true);
+
+      const response = await fetch("/api/daily-check", {
+        method: "POST",
+        headers: {
+          "x-telegram-init-data": initData,
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setAdMessage("Reward confirmation is still pending.");
+        return;
+      }
+
+      setDailyAdsCompleted(data.ads_completed ?? 0);
+      setDailyRewardClaimed(data.reward_granted ?? false);
+
+      if (data.reward_granted) {
+        setAdMessage("🎉 Daily Check complete! +100 PP");
+      } else if ((data.ads_completed ?? 0) < 3) {
+        setAdMessage(
+          `✅ Reward confirmed. ${data.ads_completed}/3 ads completed.`
+        );
+      } else {
+        setAdMessage("✅ Daily Check completed.");
+      }
     } catch {
       setAdMessage("Ad was skipped or could not be completed.");
     } finally {
       setAdLoading(false);
+      setDailyLoading(false);
     }
   };
   return (
@@ -101,27 +176,48 @@ export default function Home() {
 
           <div className="mt-5 flex items-center gap-2">
             <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/8">
-              <div className="h-full w-0 rounded-full bg-emerald-400 transition-all" />
+              <div
+                className="h-full rounded-full bg-emerald-400 transition-all"
+                style={{
+                  width: `${Math.min(dailyAdsCompleted, 3) * 33.333333}%`,
+                }}
+              />
             </div>
 
             <span className="text-xs font-bold text-white/55">
-              0 / 3
+              {Math.min(dailyAdsCompleted, 3)} / 3
             </span>
           </div>
 
           <div className="mt-4 grid grid-cols-3 gap-2">
-            <div className="h-1.5 rounded-full bg-white/10" />
-            <div className="h-1.5 rounded-full bg-white/10" />
-            <div className="h-1.5 rounded-full bg-white/10" />
+            {[0, 1, 2].map((step) => (
+              <div
+                key={step}
+                className={`h-1.5 rounded-full ${
+                  step < dailyAdsCompleted
+                    ? "bg-emerald-400"
+                    : "bg-white/10"
+                }`}
+              />
+            ))}
           </div>
 
           <button
             type="button"
             onClick={handleWatchAd}
-            disabled={adLoading}
+            disabled={
+              adLoading ||
+              dailyLoading ||
+              dailyRewardClaimed ||
+              dailyAdsCompleted >= 3
+            }
             className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-400 px-4 py-3 text-sm font-black text-black transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {adLoading ? "Loading Ad..." : "▶ Watch Ads & Check In"}
+            {dailyRewardClaimed || dailyAdsCompleted >= 3
+              ? "✅ Daily Checked"
+              : adLoading || dailyLoading
+                ? "Confirming Reward..."
+                : "▶ Watch Ads & Check In"}
           </button>
 
           {adMessage && (
