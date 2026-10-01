@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 export async function GET(request: NextRequest) {
-  const userId = request.nextUrl.searchParams.get("userId");
+  const userId =
+    request.nextUrl.searchParams.get("userId") ??
+    request.nextUrl.searchParams.get("userid") ??
+    request.nextUrl.searchParams.get("telegramId");
 
   if (!userId || !/^\d+$/.test(userId)) {
     return NextResponse.json(
