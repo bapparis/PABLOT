@@ -7,9 +7,12 @@ export default function Home() {
   const adController = useRef<AdsgramAdController | null>(null);
   const [adLoading, setAdLoading] = useState(false);
   const [adMessage, setAdMessage] = useState("");
-  const [dailyAdsCompleted, setDailyAdsCompleted] = useState(0);
-  const [dailyRewardClaimed, setDailyRewardClaimed] = useState(false);
+  const [streakDay, setStreakDay] = useState(1);
+  const [checkedInToday, setCheckedInToday] = useState(false);
+  const [treasureUnlocked, setTreasureUnlocked] = useState(false);
+  const [treasureClaimed, setTreasureClaimed] = useState(false);
   const [dailyLoading, setDailyLoading] = useState(false);
+  const [treasureLoading, setTreasureLoading] = useState(false);
 
   useEffect(() => {
     if (typeof Adsgram !== "undefined") {
@@ -36,8 +39,10 @@ export default function Home() {
 
       const data = await response.json();
 
-      setDailyAdsCompleted(data.ads_completed ?? 0);
-      setDailyRewardClaimed(data.reward_claimed ?? false);
+      setStreakDay(data.streak_day ?? 1);
+      setCheckedInToday(data.checked_in_today ?? false);
+      setTreasureUnlocked(data.treasure_unlocked ?? false);
+      setTreasureClaimed(data.treasure_claimed ?? false);
     } catch {
       // Keep the existing UI state if loading fails.
     }
@@ -46,6 +51,95 @@ export default function Home() {
   useEffect(() => {
     loadDailyCheck();
   }, []);
+
+  const handleDailyCheckIn = async () => {
+    if (dailyLoading || checkedInToday) return;
+
+    const initData = window.Telegram?.WebApp?.initData;
+
+    if (!initData) {
+      setAdMessage("Telegram session not available.");
+      return;
+    }
+
+    setDailyLoading(true);
+    setAdMessage("");
+
+    try {
+      const response = await fetch("/api/daily-check", {
+        method: "POST",
+        headers: {
+          "x-telegram-init-data": initData,
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setAdMessage("Unable to check in. Please try again.");
+        return;
+      }
+
+      setStreakDay(data.streak_day ?? 1);
+      setCheckedInToday(data.checked_in_today ?? true);
+      setTreasureUnlocked(data.treasure_unlocked ?? false);
+      setTreasureClaimed(data.treasure_claimed ?? false);
+      setAdMessage("✅ Daily check-in complete!");
+    } catch {
+      setAdMessage("Something went wrong. Please try again.");
+    } finally {
+      setDailyLoading(false);
+    }
+  };
+
+  const handleTreasure = async () => {
+    if (
+      treasureLoading ||
+      !treasureUnlocked ||
+      treasureClaimed
+    ) {
+      return;
+    }
+
+    const initData = window.Telegram?.WebApp?.initData;
+
+    if (!initData) {
+      setAdMessage("Telegram session not available.");
+      return;
+    }
+
+    setTreasureLoading(true);
+    setAdMessage("");
+
+    try {
+      const response = await fetch("/api/daily-treasure", {
+        method: "POST",
+        headers: {
+          "x-telegram-init-data": initData,
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setAdMessage(
+          data.error === "TREASURE_NOT_UNLOCKED"
+            ? "Treasure is not unlocked yet."
+            : "Unable to open treasure. Please try again."
+        );
+        return;
+      }
+
+      setTreasureClaimed(true);
+      setAdMessage(
+        `🎉 Treasure opened! +${data.reward_pp ?? 0} PP`
+      );
+    } catch {
+      setAdMessage("Something went wrong. Please try again.");
+    } finally {
+      setTreasureLoading(false);
+    }
+  };
 
   const handleWatchAd = async () => {
     if (adLoading || dailyLoading) return;
@@ -108,17 +202,10 @@ export default function Home() {
         if (response.ok && data.status === "CLAIMED") {
           confirmed = true;
 
-          setDailyAdsCompleted(data.ads_completed ?? 0);
-          setDailyRewardClaimed(data.reward_granted ?? false);
-
           if (data.reward_granted) {
-            setAdMessage("🎉 Daily Check complete! +100 PP");
-          } else if ((data.ads_completed ?? 0) < 3) {
-            setAdMessage(
-              `✅ Reward confirmed. ${data.ads_completed}/3 ads completed.`
-            );
+            setAdMessage("✅ Ad reward confirmed.");
           } else {
-            setAdMessage("✅ Daily Check completed.");
+            setAdMessage("✅ Ad completed and reward confirmed.");
           }
 
           break;
@@ -198,39 +285,48 @@ export default function Home() {
                 DAILY CHECK-IN
               </p>
               <h2 className="mt-1.5 text-lg font-black">
-                Complete your daily check
+                Build your streak
               </h2>
               <p className="mt-1 text-xs text-white/45">
-                Watch 3 ads to complete today’s check.
+                Check in once every day to keep your streak alive.
               </p>
             </div>
 
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-400/10 text-xl">
-              🎁
+              🔥
             </div>
           </div>
 
-          <div className="mt-5 flex items-center gap-2">
-            <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/8">
-              <div
-                className="h-full rounded-full bg-emerald-400 transition-all"
-                style={{
-                  width: `${Math.min(dailyAdsCompleted, 3) * 33.333333}%`,
-                }}
-              />
+          <div className="mt-5 flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/35">
+                CURRENT STREAK
+              </p>
+              <p className="mt-1 text-2xl font-black">
+                Day {Math.min(streakDay, 7)}
+              </p>
             </div>
 
-            <span className="text-xs font-bold text-white/55">
-              {Math.min(dailyAdsCompleted, 3)} / 3
-            </span>
+            <div className="text-right">
+              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/35">
+                TREASURE
+              </p>
+              <p className="mt-1 text-xs font-bold text-white/55">
+                {treasureClaimed
+                  ? "Opened"
+                  : treasureUnlocked
+                    ? "Unlocked"
+                    : `${Math.max(0, 7 - streakDay)} day${7 - streakDay === 1 ? "" : "s"} left`}
+              </p>
+            </div>
           </div>
 
-          <div className="mt-4 grid grid-cols-3 gap-2">
-            {[0, 1, 2].map((step) => (
+          <div className="mt-4 grid grid-cols-7 gap-1.5">
+            {[1, 2, 3, 4, 5, 6, 7].map((day) => (
               <div
-                key={step}
+                key={day}
                 className={`h-1.5 rounded-full ${
-                  step < dailyAdsCompleted
+                  day <= streakDay
                     ? "bg-emerald-400"
                     : "bg-white/10"
                 }`}
@@ -240,21 +336,29 @@ export default function Home() {
 
           <button
             type="button"
-            onClick={handleWatchAd}
-            disabled={
-              adLoading ||
-              dailyLoading ||
-              dailyRewardClaimed ||
-              dailyAdsCompleted >= 3
-            }
-            className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-400 px-4 py-3 text-sm font-black text-black transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+            onClick={handleDailyCheckIn}
+            disabled={dailyLoading || checkedInToday}
+            className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-400 px-4 py-3 text-sm font-black text-black transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {dailyRewardClaimed || dailyAdsCompleted >= 3
-              ? "✅ Daily Checked"
-              : adLoading || dailyLoading
-                ? "Confirming Reward..."
-                : "▶ Watch Ads & Check In"}
+            {checkedInToday
+              ? "✅ CHECKED"
+              : dailyLoading
+                ? "CHECKING..."
+                : "CHECK-IN"}
           </button>
+
+          {treasureUnlocked && !treasureClaimed && (
+            <button
+              type="button"
+              onClick={handleTreasure}
+              disabled={treasureLoading}
+              className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border border-yellow-300/20 bg-yellow-300/10 px-4 py-3 text-sm font-black text-yellow-200 transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {treasureLoading
+                ? "OPENING..."
+                : "🎁 OPEN TREASURE"}
+            </button>
+          )}
 
           {adMessage && (
             <p className="mt-2 text-center text-[11px] font-semibold text-white/45">

@@ -44,27 +44,18 @@ function verifyTelegramInitData(
   }
 }
 
-export async function GET(request: NextRequest) {
+async function getAuthenticatedUser(request: NextRequest) {
   const initData = request.headers.get("x-telegram-init-data");
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
 
   if (!initData || !botToken) {
-    return NextResponse.json(
-      { error: "UNAUTHORIZED" },
-      { status: 401 }
-    );
+    return { error: "UNAUTHORIZED", status: 401 as const };
   }
 
-  const telegramUser = verifyTelegramInitData(
-    initData,
-    botToken
-  );
+  const telegramUser = verifyTelegramInitData(initData, botToken);
 
   if (!telegramUser) {
-    return NextResponse.json(
-      { error: "INVALID_TELEGRAM_DATA" },
-      { status: 401 }
-    );
+    return { error: "INVALID_TELEGRAM_DATA", status: 401 as const };
   }
 
   const supabase = createClient(
@@ -72,27 +63,44 @@ export async function GET(request: NextRequest) {
     process.env.SUPABASE_SECRET_KEY!
   );
 
-  const { data: user, error: userError } = await supabase
+  const { data: user, error } = await supabase
     .from("users")
     .select("id")
     .eq("telegram_id", telegramUser.id)
     .maybeSingle();
 
-  if (userError || !user) {
+  if (error || !user) {
+    return { error: "USER_NOT_FOUND", status: 404 as const };
+  }
+
+  return { supabase, user };
+}
+
+export async function GET(request: NextRequest) {
+  const auth = await getAuthenticatedUser(request);
+
+  if ("error" in auth) {
     return NextResponse.json(
-      { error: "USER_NOT_FOUND" },
-      { status: 404 }
+      { error: auth.error },
+      { status: auth.status }
     );
   }
 
-  const { data: check, error: checkError } = await supabase
-    .from("daily_ad_checks")
-    .select("ads_completed, reward_claimed")
+  const { supabase, user } = auth;
+
+  const { data: check, error } = await supabase
+    .from("daily_checkins")
+    .select(
+      "streak_day, treasure_unlocked, treasure_claimed"
+    )
     .eq("user_id", user.id)
-    .eq("check_date", new Date().toISOString().slice(0, 10))
+    .eq(
+      "check_date",
+      new Date().toISOString().slice(0, 10)
+    )
     .maybeSingle();
 
-  if (checkError) {
+  if (error) {
     return NextResponse.json(
       { error: "CHECK_LOOKUP_FAILED" },
       { status: 500 }
@@ -100,65 +108,37 @@ export async function GET(request: NextRequest) {
   }
 
   return NextResponse.json({
-    ads_completed: check?.ads_completed ?? 0,
-    reward_claimed: check?.reward_claimed ?? false,
+    streak_day: check?.streak_day ?? 0,
+    checked_in_today: Boolean(check),
+    treasure_unlocked: check?.treasure_unlocked ?? false,
+    treasure_claimed: check?.treasure_claimed ?? false,
   });
 }
 
-
 export async function POST(request: NextRequest) {
-  const initData = request.headers.get("x-telegram-init-data");
-  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  const auth = await getAuthenticatedUser(request);
 
-  if (!initData || !botToken) {
+  if ("error" in auth) {
     return NextResponse.json(
-      { error: "UNAUTHORIZED" },
-      { status: 401 }
+      { error: auth.error },
+      { status: auth.status }
     );
   }
 
-  const telegramUser = verifyTelegramInitData(
-    initData,
-    botToken
-  );
-
-  if (!telegramUser) {
-    return NextResponse.json(
-      { error: "INVALID_TELEGRAM_DATA" },
-      { status: 401 }
-    );
-  }
-
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SECRET_KEY!
-  );
-
-  const { data: user, error: userError } = await supabase
-    .from("users")
-    .select("id")
-    .eq("telegram_id", telegramUser.id)
-    .maybeSingle();
-
-  if (userError || !user) {
-    return NextResponse.json(
-      { error: "USER_NOT_FOUND" },
-      { status: 404 }
-    );
-  }
+  const { supabase, user } = auth;
 
   const { data, error } = await supabase.rpc(
-    "claim_daily_ad_reward",
+    "complete_daily_checkin",
     {
       p_user_id: user.id,
     }
   );
 
   if (error) {
-    console.error("Daily Check claim error:", error);
+    console.error("Daily Check-in error:", error);
 
     return NextResponse.json(
-      { error: "DAILY_CHECK_CLAIM_FAILED" },
+      { error: "DAILY_CHECKIN_FAILED" },
       { status: 500 }
     );
   }
@@ -166,10 +146,12 @@ export async function POST(request: NextRequest) {
   const result = Array.isArray(data) ? data[0] : data;
 
   return NextResponse.json({
-    ads_completed: result?.ads_completed ?? 0,
-    reward_granted: result?.reward_granted ?? false,
-    pp_balance: result?.pp_balance ?? 0,
-    total_earned: result?.total_earned ?? 0,
-    status: result?.status ?? "PENDING",
+    streak_day: result?.streak_day ?? 0,
+    checked_in_today:
+      result?.checked_in_today ?? false,
+    treasure_unlocked:
+      result?.treasure_unlocked ?? false,
+    treasure_claimed:
+      result?.treasure_claimed ?? false,
   });
 }
