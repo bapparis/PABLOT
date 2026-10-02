@@ -47,9 +47,11 @@ export default function Home() {
       setCheckedInToday(data.checked_in_today ?? false);
       setTreasureUnlocked(data.treasure_unlocked ?? false);
       setTreasureClaimed(data.treasure_claimed ?? false);
+      return data.streak_day ?? 1;
     } catch {
       // Keep the existing UI state if loading fails.
     }
+    return null;
   };
 
   useEffect(() => {
@@ -151,7 +153,7 @@ export default function Home() {
 
         setAdMessage(
           completed >= 3
-            ? "🟩 🟩 🟩 Daily check completed!"
+            ? `🔥 Day ${streakDay} streak! +${streakDay >= 7 ? 50 : 10} PP`
             : `🟩 ${completed >= 2 ? "🟩" : "⬜"} ${completed >= 3 ? "🟩" : "⬜"}`
         );
 
@@ -159,9 +161,13 @@ export default function Home() {
           setCheckedInToday(true);
           setStreakDay((prev) => Math.min(prev + 1, 7));
 
-          await loadDailyCheck();
+          const updatedStreakDay = await loadDailyCheck();
 
-          setAdMessage("🔥 ${streakDay} day streak! Keep going.");
+          setAdMessage(
+            updatedStreakDay >= 7
+              ? "🎉 7 day streak completed! 🎁 Treasure unlocked!"
+              : `🔥 Day ${updatedStreakDay} streak! +${updatedStreakDay >= 7 ? 50 : 10} PP`
+          );
           break;
         }
       }
