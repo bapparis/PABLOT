@@ -268,6 +268,16 @@ export default function WalletPage() {
           </div>
         </section>
 
+        {/* Withdraw */}
+        <section className="mt-5">
+          <a
+            href="/withdraw"
+            className="flex w-full items-center justify-center rounded-2xl bg-emerald-400 py-4 text-sm font-black text-black transition active:scale-[0.98]"
+          >
+            WITHDRAW
+          </a>
+        </section>
+
         {/* Withdrawal wallet */}
         <section className="glass-panel mt-5 rounded-[24px] p-5">
           <div className="flex items-center gap-4">
