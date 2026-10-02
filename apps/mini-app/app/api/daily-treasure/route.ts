@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
     console.error("Daily Treasure claim error:", error);
 
     return NextResponse.json(
-      { error: "TREASURE_CLAIM_FAILED" },
+      { error: "TREASURE_CLAIM_FAILED", detail: error.message },
       { status: 500 }
     );
   }
