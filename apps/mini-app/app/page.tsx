@@ -161,7 +161,7 @@ export default function Home() {
 
           await loadDailyCheck();
 
-          setAdMessage("🎉 Daily check complete! +100 PP");
+          setAdMessage("🔥 ${streakDay} day streak! Keep going.");
           break;
         }
       }
