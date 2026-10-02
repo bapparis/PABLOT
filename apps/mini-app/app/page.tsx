@@ -9,6 +9,7 @@ export default function Home() {
   const [adMessage, setAdMessage] = useState("");
   const [streakDay, setStreakDay] = useState(1);
   const [checkedInToday, setCheckedInToday] = useState(false);
+  const [dailyAdsCompleted, setDailyAdsCompleted] = useState(0);
   const [treasureUnlocked, setTreasureUnlocked] = useState(false);
   const [treasureClaimed, setTreasureClaimed] = useState(false);
   const [dailyLoading, setDailyLoading] = useState(false);
@@ -40,6 +41,9 @@ export default function Home() {
       const data = await response.json();
 
       setStreakDay(data.streak_day ?? 1);
+      setDailyAdsCompleted(
+        Math.min(data.ads_completed ?? 0, 3)
+      );
       setCheckedInToday(data.checked_in_today ?? false);
       setTreasureUnlocked(data.treasure_unlocked ?? false);
       setTreasureClaimed(data.treasure_claimed ?? false);
@@ -55,7 +59,8 @@ export default function Home() {
   const handleDailyCheckIn = async () => {
     if (dailyLoading || checkedInToday) return;
 
-    const initData = window.Telegram?.WebApp?.initData;
+    const webApp = window.Telegram?.WebApp;
+    const initData = webApp?.initData;
 
     if (!initData) {
       setAdMessage("Telegram session not available.");
@@ -66,27 +71,102 @@ export default function Home() {
     setAdMessage("");
 
     try {
-      const response = await fetch("/api/daily-check", {
-        method: "POST",
-        headers: {
-          "x-telegram-init-data": initData,
-        },
-      });
+      const monetag = (
+        window as typeof window & {
+          show_11934399?: (options?: {
+            ymid?: string;
+            requestVar?: string;
+          }) => Promise<unknown>;
+        }
+      ).show_11934399;
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        setAdMessage("Unable to check in. Please try again.");
+      if (!monetag) {
+        setAdMessage("Monetag ad is not ready yet. Please try again.");
         return;
       }
 
-      setStreakDay(data.streak_day ?? 1);
-      setCheckedInToday(data.checked_in_today ?? true);
-      setTreasureUnlocked(data.treasure_unlocked ?? false);
-      setTreasureClaimed(data.treasure_claimed ?? false);
-      setAdMessage("✅ Daily check-in complete!");
+      for (let adNumber = 1; adNumber <= 3; adNumber++) {
+        setAdMessage(
+          `📺 Loading ad ${adNumber}/3...`
+        );
+
+        const telegramId = webApp?.initDataUnsafe?.user?.id;
+
+        const ymid = telegramId
+          ? `pablot_daily_${telegramId}_${Date.now()}_${crypto.randomUUID()}`
+          : `pablot_daily_${Date.now()}_${crypto.randomUUID()}`;
+
+        await monetag({
+          ymid,
+          requestVar: "daily_check",
+        });
+
+        setAdMessage(
+          `⏳ Ad ${adNumber}/3 completed. Confirming reward...`
+        );
+
+        let confirmed = false;
+        let rewardData: {
+          ads_completed?: number;
+          reward_granted?: boolean;
+          status?: string;
+        } | null = null;
+
+        for (let attempt = 0; attempt < 20; attempt++) {
+          const response = await fetch("/api/monetag/claim", {
+            method: "POST",
+            headers: {
+              "x-telegram-init-data": initData,
+            },
+          });
+
+          const data = await response.json();
+
+          if (response.ok && data.status === "CLAIMED") {
+            confirmed = true;
+            rewardData = data;
+            break;
+          }
+
+          if (attempt < 19) {
+            await new Promise((resolve) =>
+              setTimeout(resolve, 2000)
+            );
+          }
+        }
+
+        if (!confirmed) {
+          setAdMessage(
+            `⏳ Ad ${adNumber}/3 completed. Waiting for confirmation...`
+          );
+          return;
+        }
+
+        const completed = Math.min(
+          rewardData?.ads_completed ?? adNumber,
+          3
+        );
+
+        setDailyAdsCompleted(completed);
+
+        setAdMessage(
+          completed >= 3
+            ? "🟩 🟩 🟩 Daily check completed!"
+            : `🟩 ${completed >= 2 ? "🟩" : "⬜"} ${completed >= 3 ? "🟩" : "⬜"}`
+        );
+
+        if (completed >= 3 && rewardData?.reward_granted) {
+          setCheckedInToday(true);
+          setStreakDay((prev) => Math.min(prev + 1, 7));
+
+          await loadDailyCheck();
+
+          setAdMessage("🎉 Daily check complete! +100 PP");
+          break;
+        }
+      }
     } catch {
-      setAdMessage("Something went wrong. Please try again.");
+      setAdMessage("Ad was skipped or could not be completed.");
     } finally {
       setDailyLoading(false);
     }
@@ -294,12 +374,12 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="mt-3 grid grid-cols-7 gap-1.5">
-            {[1, 2, 3, 4, 5, 6, 7].map((day) => (
+          <div className="mt-4 flex items-center justify-center gap-2">
+            {[1, 2, 3].map((ad) => (
               <div
-                key={day}
-                className={`h-1.5 rounded-full ${
-                  day <= streakDay
+                key={ad}
+                className={`h-2 w-12 rounded-full transition-all duration-300 ${
+                  ad <= dailyAdsCompleted
                     ? "bg-emerald-400"
                     : "bg-white/10"
                 }`}
@@ -307,12 +387,10 @@ export default function Home() {
             ))}
           </div>
 
-          <p className="mt-2 text-center text-[10px] text-white/35">
-            {treasureClaimed
-              ? "Treasure opened"
-              : treasureUnlocked
-                ? "🎁 Treasure unlocked"
-                : "7-day streak unlocks a Treasure Box"}
+          <p className="mt-2 text-center text-[9px] font-semibold text-white/35">
+            {checkedInToday
+              ? "3/3 ads completed"
+              : "Watch 3 rewarded ads to check in"}
           </p>
 
           <div className="mt-3 flex justify-center">
@@ -320,12 +398,12 @@ export default function Home() {
               type="button"
               onClick={handleDailyCheckIn}
               disabled={dailyLoading || checkedInToday}
-              className="rounded-lg bg-emerald-400 px-6 py-2 text-xs font-black text-black transition active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-lg bg-emerald-400 px-5 py-2 text-[11px] font-black text-black transition active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {checkedInToday
                 ? "✅ CHECKED"
                 : dailyLoading
-                  ? "CHECKING..."
+                  ? "◌ LOADING..."
                   : "CHECK-IN"}
             </button>
           </div>
@@ -336,7 +414,7 @@ export default function Home() {
                 type="button"
                 onClick={handleTreasure}
                 disabled={treasureLoading}
-                className="rounded-lg border border-yellow-300/20 bg-yellow-300/10 px-5 py-2 text-xs font-black text-yellow-200 transition active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-lg border border-yellow-300/20 bg-yellow-300/10 px-4 py-1.5 text-[10px] font-black text-yellow-200 transition active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {treasureLoading
                   ? "OPENING..."

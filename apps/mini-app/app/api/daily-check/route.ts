@@ -88,19 +88,28 @@ export async function GET(request: NextRequest) {
 
   const { supabase, user } = auth;
 
-  const { data: check, error } = await supabase
-    .from("daily_checkins")
-    .select(
-      "streak_day, treasure_unlocked, treasure_claimed"
-    )
-    .eq("user_id", user.id)
-    .eq(
-      "check_date",
-      new Date().toISOString().slice(0, 10)
-    )
-    .maybeSingle();
+  const today = new Date().toISOString().slice(0, 10);
 
-  if (error) {
+  const [{ data: check, error: checkError }, { data: adCheck, error: adError }] =
+    await Promise.all([
+      supabase
+        .from("daily_checkins")
+        .select(
+          "streak_day, treasure_unlocked, treasure_claimed"
+        )
+        .eq("user_id", user.id)
+        .eq("check_date", today)
+        .maybeSingle(),
+
+      supabase
+        .from("daily_ad_checks")
+        .select("ads_completed")
+        .eq("user_id", user.id)
+        .eq("check_date", today)
+        .maybeSingle(),
+    ]);
+
+  if (checkError || adError) {
     return NextResponse.json(
       { error: "CHECK_LOOKUP_FAILED" },
       { status: 500 }
@@ -109,6 +118,7 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     streak_day: check?.streak_day ?? 0,
+    ads_completed: Math.min(adCheck?.ads_completed ?? 0, 3),
     checked_in_today: Boolean(check),
     treasure_unlocked: check?.treasure_unlocked ?? false,
     treasure_claimed: check?.treasure_claimed ?? false,
