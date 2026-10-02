@@ -537,8 +537,15 @@ export default function WalletPage() {
                   Completed
                 </p>
 
-                <p className="mt-1 text-3xl font-black tracking-tight text-emerald-300">
-                  +{selectedTransaction.amount.toLocaleString()} PP
+                <p
+                  className={`mt-1 text-3xl font-black tracking-tight ${
+                    selectedTransaction.amount < 0
+                      ? "text-red-300"
+                      : "text-emerald-300"
+                  }`}
+                >
+                  {selectedTransaction.amount >= 0 ? "+" : ""}
+                  {selectedTransaction.amount.toLocaleString()} PP
                 </p>
               </div>
 

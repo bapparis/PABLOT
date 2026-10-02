@@ -193,10 +193,16 @@ export default function WithdrawPage() {
           : current
       );
 
-      setWithdrawals((current) => [
-        data.withdrawal,
-        ...current,
-      ]);
+      const historyResponse = await fetch("/api/withdrawals", {
+        headers: {
+          "x-telegram-init-data": initData,
+        },
+      });
+
+      if (historyResponse.ok) {
+        const historyData = await historyResponse.json();
+        setWithdrawals(historyData.withdrawals ?? []);
+      }
     } catch {
       setMessage(
         "Unable to create withdrawal. Please try again."
