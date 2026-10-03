@@ -47,11 +47,11 @@ export default function StaffLoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#070B12] px-5 py-10 text-white">
+    <main className="min-h-screen bg-[#061018] px-5 py-10 text-white">
       <div className="mx-auto flex min-h-[80vh] w-full max-w-md items-center">
         <section className="w-full rounded-3xl border border-white/10 bg-[#0b111b] p-6 shadow-2xl">
           <div className="mb-8">
-            <p className="text-xs font-black uppercase tracking-[0.28em] text-[#b8f34a]">
+            <p className="text-xs font-black uppercase tracking-[0.28em] text-[#59D9FF]">
               PABLOT CONTROL
             </p>
             <h1 className="mt-3 text-3xl font-black">
@@ -76,7 +76,7 @@ export default function StaffLoginPage() {
                 autoComplete="email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                className="w-full rounded-2xl border border-white/10 bg-[#070B12] px-4 py-3 text-white outline-none focus:border-[#b8f34a]"
+                className="w-full rounded-2xl border border-white/10 bg-[#061018] px-4 py-3 text-white outline-none focus:border-[#59D9FF]"
                 placeholder="staff@example.com"
               />
             </div>
@@ -94,7 +94,7 @@ export default function StaffLoginPage() {
                 autoComplete="current-password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
-                className="w-full rounded-2xl border border-white/10 bg-[#070B12] px-4 py-3 text-white outline-none focus:border-[#b8f34a]"
+                className="w-full rounded-2xl border border-white/10 bg-[#061018] px-4 py-3 text-white outline-none focus:border-[#59D9FF]"
                 placeholder="Your staff password"
               />
             </div>
@@ -111,7 +111,7 @@ export default function StaffLoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-2xl bg-[#b8f34a] px-4 py-3 font-black text-[#070B12] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+              className="w-full rounded-2xl bg-[#59D9FF] px-4 py-3 font-black text-[#061018] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {loading ? "Signing in..." : "Sign in"}
             </button>
