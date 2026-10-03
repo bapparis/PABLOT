@@ -110,7 +110,7 @@ export default function AdminShell({
       method: "POST",
     });
 
-    window.location.href = "/admin";
+    window.location.href = identity?.type === "staff" ? "/staff" : "/admin";
   }
 
   return (
