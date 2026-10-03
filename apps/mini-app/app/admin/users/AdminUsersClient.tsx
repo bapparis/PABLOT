@@ -56,19 +56,17 @@ export default function AdminUsersClient() {
     loadUsers();
   }, []);
 
-  function formatDate(value: string) {
-    return new Date(value).toLocaleDateString();
-  }
-
   return (
-    <main className="mx-auto w-full max-w-6xl px-5 pb-10">
+    <main className="mx-auto w-full max-w-3xl px-5 pb-10">
       <div className="mb-7">
         <p className="text-[10px] font-black uppercase tracking-[0.25em] text-[#59D9FF]">
           PABLOT CONTROL
         </p>
+
         <h1 className="mt-2 text-3xl font-black">Users</h1>
+
         <p className="mt-2 text-sm text-white/45">
-          Search and inspect PABLOT user accounts and activity.
+          Select a user to inspect their account and activity.
         </p>
       </div>
 
@@ -82,7 +80,7 @@ export default function AdminUsersClient() {
         <input
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          placeholder="Search username, PABLOT ID or name"
+          placeholder="Search users..."
           className="min-w-0 flex-1 rounded-2xl border border-white/10 bg-[#0d141e] px-4 py-3 text-sm text-white outline-none placeholder:text-white/25 focus:border-[#59D9FF]/50"
         />
 
@@ -100,8 +98,8 @@ export default function AdminUsersClient() {
         </div>
       )}
 
-      <div className="mb-4 text-sm text-white/45">
-        {loading ? "Loading users..." : `${users.length} users shown`}
+      <div className="mb-3 text-xs font-bold uppercase tracking-wider text-white/30">
+        {loading ? "Loading users..." : `${users.length} users`}
       </div>
 
       <div className="overflow-hidden rounded-3xl border border-white/10 bg-[#0a111a]">
@@ -111,17 +109,26 @@ export default function AdminUsersClient() {
           </div>
         ) : (
           <div className="divide-y divide-white/5">
-            {users.map((user) => (
-              <div
-                key={user.id}
-                className="flex flex-col gap-4 p-5 transition hover:bg-white/[0.02] md:flex-row md:items-center"
-              >
-                <div className="flex min-w-0 flex-1 items-center gap-4">
+            {users.map((user, index) => {
+              const fullName = `${user.first_name} ${
+                user.last_name ?? ""
+              }`.trim();
+
+              return (
+                <a
+                  key={user.id}
+                  href={`/admin/users/${user.id}`}
+                  className="flex min-h-[72px] items-center gap-4 px-5 py-3 transition hover:bg-white/[0.03] active:bg-white/[0.05]"
+                >
+                  <span className="w-7 shrink-0 text-sm font-black text-white/25">
+                    {index + 1}
+                  </span>
+
                   {user.photo_url ? (
                     <img
                       src={user.photo_url}
                       alt=""
-                      className="h-11 w-11 rounded-full object-cover"
+                      className="h-11 w-11 shrink-0 rounded-full object-cover"
                     />
                   ) : (
                     <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#59D9FF]/10 font-black text-[#59D9FF]">
@@ -129,55 +136,22 @@ export default function AdminUsersClient() {
                     </div>
                   )}
 
-                  <div className="min-w-0">
-                    <p className="truncate font-bold">
-                      {user.first_name} {user.last_name ?? ""}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-bold text-white">
+                      {fullName}
                     </p>
-                    <p className="truncate text-xs text-white/40">
-                      {user.username ? `@${user.username}` : "No username"}
-                    </p>
-                  </div>
-                </div>
 
-                <div className="grid grid-cols-2 gap-4 text-sm md:flex md:items-center">
-                  <div>
-                    <p className="text-[10px] uppercase tracking-wider text-white/30">
-                      PABLOT ID
-                    </p>
-                    <p className="mt-1 font-bold">
-                      {user.pablot_id ?? "—"}
+                    <p className="mt-1 truncate text-xs text-white/35">
+                      {user.username
+                        ? `@${user.username}`
+                        : user.pablot_id ?? "No username"}
                     </p>
                   </div>
 
-                  <div>
-                    <p className="text-[10px] uppercase tracking-wider text-white/30">
-                      Balance
-                    </p>
-                    <p className="mt-1 font-bold text-[#59D9FF]">
-                      {user.pp_balance.toLocaleString()} PP
-                    </p>
-                  </div>
-
-                  <div>
-                    <p className="text-[10px] uppercase tracking-wider text-white/30">
-                      Earned
-                    </p>
-                    <p className="mt-1 font-bold">
-                      {user.total_earned.toLocaleString()} PP
-                    </p>
-                  </div>
-
-                  <div>
-                    <p className="text-[10px] uppercase tracking-wider text-white/30">
-                      Joined
-                    </p>
-                    <p className="mt-1 font-bold">
-                      {formatDate(user.created_at)}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ))}
+                  <span className="text-white/20">›</span>
+                </a>
+              );
+            })}
           </div>
         )}
       </div>
