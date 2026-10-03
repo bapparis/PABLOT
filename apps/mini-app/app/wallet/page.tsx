@@ -383,8 +383,15 @@ export default function WalletPage() {
                   </div>
 
                   <div className="shrink-0 text-right">
-                    <p className="text-sm font-black text-emerald-300">
-                      +{transaction.amount.toLocaleString()} PP
+                    <p
+                      className={`text-sm font-black ${
+                        Number(transaction.amount) < 0
+                          ? "text-red-300"
+                          : "text-emerald-300"
+                      }`}
+                    >
+                      {Number(transaction.amount) >= 0 ? "+" : ""}
+                      {Math.abs(Number(transaction.amount)).toLocaleString()} PP
                     </p>
 
                     <p className="mt-1 text-[10px] text-white/25">
