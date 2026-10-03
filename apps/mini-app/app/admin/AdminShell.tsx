@@ -1,15 +1,56 @@
 "use client";
 
-import { ReactNode, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
+
+type AdminIdentity = {
+  type: "owner" | "staff";
+  role: "owner" | "admin" | "moderator" | "support";
+  permissions: Record<string, boolean>;
+};
 
 const navigation = [
-  { href: "/admin/dashboard", label: "Overview", icon: "⌂" },
-  { href: "/admin/withdrawals", label: "Withdrawals", icon: "↗" },
-  { href: "/admin/tasks", label: "Tasks", icon: "☷" },
-  { href: "/admin/users", label: "Users", icon: "♙" },
-  { href: "/admin/analytics", label: "Analytics", icon: "◫" },
-  { href: "/admin/staff", label: "Staff", icon: "♙" },
-  { href: "/admin/settings", label: "Settings", icon: "⚙" },
+  {
+    href: "/admin/dashboard",
+    label: "Overview",
+    icon: "⌂",
+    permission: "view_overview",
+  },
+  {
+    href: "/admin/withdrawals",
+    label: "Withdrawals",
+    icon: "↗",
+    permission: "manage_withdrawals",
+  },
+  {
+    href: "/admin/tasks",
+    label: "Tasks",
+    icon: "☷",
+    permission: "manage_tasks",
+  },
+  {
+    href: "/admin/users",
+    label: "Users",
+    icon: "♙",
+    permission: "manage_users",
+  },
+  {
+    href: "/admin/analytics",
+    label: "Analytics",
+    icon: "◫",
+    permission: "view_analytics",
+  },
+  {
+    href: "/admin/staff",
+    label: "Staff",
+    icon: "♙",
+    ownerOnly: true,
+  },
+  {
+    href: "/admin/settings",
+    label: "Settings",
+    icon: "⚙",
+    permission: "manage_settings",
+  },
 ];
 
 export default function AdminShell({
@@ -18,6 +59,51 @@ export default function AdminShell({
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const [identity, setIdentity] = useState<AdminIdentity | null>(null);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadIdentity() {
+      try {
+        const response = await fetch("/api/admin/me", {
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          return;
+        }
+
+        const data = await response.json();
+
+        if (active) {
+          setIdentity(data);
+        }
+      } catch {
+        // Keep the drawer unavailable until identity is loaded.
+      }
+    }
+
+    loadIdentity();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const visibleNavigation = navigation.filter((item) => {
+    if (!identity) {
+      return false;
+    }
+
+    if (item.ownerOnly) {
+      return identity.type === "owner";
+    }
+
+    return item.permission
+      ? identity.permissions[item.permission] === true
+      : true;
+  });
 
   async function logout() {
     await fetch("/api/admin/logout", {
@@ -57,9 +143,7 @@ export default function AdminShell({
             <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#59D9FF]">
               PABLOT CONTROL
             </p>
-            <h2 className="mt-2 text-xl font-black">
-              Command Center
-            </h2>
+            <h2 className="mt-2 text-xl font-black">Command Center</h2>
           </div>
 
           <button
@@ -73,7 +157,7 @@ export default function AdminShell({
         </div>
 
         <nav className="mt-8 space-y-2">
-          {navigation.map((item) => (
+          {visibleNavigation.map((item) => (
             <a
               key={item.href}
               href={item.href}
