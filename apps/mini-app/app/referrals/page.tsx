@@ -103,7 +103,7 @@ export default function ReferralsPage() {
       throw new Error("BOT_INFO_FAILED");
     }
 
-    return `https://t.me/${bot.username}?startapp=${encodeURIComponent(
+    return `https://t.me/${bot.username}?start=${encodeURIComponent(
       pablotId
     )}`;
   };
