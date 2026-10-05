@@ -3,6 +3,47 @@ import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
 import { isMaintenanceEnabled } from "@/lib/settings/maintenance";
 
+async function sendReferralNotification(
+  botToken: string,
+  chatId: number | string,
+  username: string | null,
+  pablotId: string
+) {
+  const userLabel =
+    username && username.trim()
+      ? `@${username.trim().replace(/^@+/, "")}`
+      : "A new PABLOT user";
+
+  const text =
+    `🎉 New referral!\n\n` +
+    `${userLabel} just joined PABLOT using your referral link.\n\n` +
+    `🆔 PABLOT ID: ${pablotId}\n\n` +
+    `⏳ Referral status: Pending qualification\n\n` +
+    `Keep sharing to unlock more rewards! 🚀`;
+
+  const response = await fetch(
+    `https://api.telegram.org/bot${botToken}/sendMessage`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text,
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    console.error(
+      "Referral notification failed:",
+      response.status,
+      await response.text()
+    );
+  }
+}
+
 function verifyTelegramInitData(initData: string, botToken: string) {
   const params = new URLSearchParams(initData);
   const hash = params.get("hash");
@@ -179,7 +220,7 @@ export async function POST(request: NextRequest) {
         if (!referralLookupError && !existingReferral) {
           const { data: referrer } = await supabase
             .from("users")
-            .select("id")
+            .select("id, telegram_id")
             .eq("pablot_id", referralStartParam)
             .maybeSingle();
 
@@ -194,11 +235,20 @@ export async function POST(request: NextRequest) {
 
             if (referralError && referralError.code !== "23505") {
               console.error("Referral attribution error:", referralError);
-            } else if (pendingReferralId) {
-              await supabase
-                .from("pending_referrals")
-                .update({ consumed_at: new Date().toISOString() })
-                .eq("id", pendingReferralId);
+            } else if (!referralError) {
+              if (pendingReferralId) {
+                await supabase
+                  .from("pending_referrals")
+                  .update({ consumed_at: new Date().toISOString() })
+                  .eq("id", pendingReferralId);
+              }
+
+              await sendReferralNotification(
+                botToken,
+                referrer.telegram_id,
+                updatedUser.username,
+                updatedUser.pablot_id
+              );
             }
           }
         }
@@ -240,7 +290,7 @@ export async function POST(request: NextRequest) {
     if (referralStartParam && referralStartParam !== newUser.pablot_id) {
       const { data: referrer } = await supabase
         .from("users")
-        .select("id")
+        .select("id, telegram_id")
         .eq("pablot_id", referralStartParam)
         .maybeSingle();
 
@@ -255,11 +305,20 @@ export async function POST(request: NextRequest) {
 
         if (referralError && referralError.code !== "23505") {
           console.error("Referral attribution error:", referralError);
-        } else if (pendingReferralId) {
-          await supabase
-            .from("pending_referrals")
-            .update({ consumed_at: new Date().toISOString() })
-            .eq("id", pendingReferralId);
+        } else if (!referralError) {
+          if (pendingReferralId) {
+            await supabase
+              .from("pending_referrals")
+              .update({ consumed_at: new Date().toISOString() })
+              .eq("id", pendingReferralId);
+          }
+
+          await sendReferralNotification(
+            botToken,
+            referrer.telegram_id,
+            newUser.username,
+            newUser.pablot_id
+          );
         }
       }
     }
