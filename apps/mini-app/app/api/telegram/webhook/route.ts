@@ -97,6 +97,27 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true });
     }
 
+    if (referralId && /^PB-\d+$/.test(referralId)) {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY;
+
+      if (supabaseUrl && supabaseSecretKey) {
+        await fetch(`${supabaseUrl}/rest/v1/pending_referrals`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: supabaseSecretKey,
+            Authorization: `Bearer ${supabaseSecretKey}`,
+            Prefer: "resolution=merge-duplicates",
+          },
+          body: JSON.stringify({
+            telegram_id: chatId,
+            referral_pablot_id: referralId,
+          }),
+        });
+      }
+    }
+
     const welcomeText = referralId
       ? "🚀 Welcome to PABLOT!\n\nYou were invited to join PABLOT. Open the Mini App below to get started."
       : "🚀 Welcome to PABLOT!\n\nEarn PP, complete tasks, and grow your rewards.";

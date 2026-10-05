@@ -94,11 +94,6 @@ export async function POST(request: NextRequest) {
     );
 
     const verifiedTelegramUser = telegramUser?.user;
-    const referralStartParam =
-      telegramUser?.startParam ??
-      (clientStartParam && /^PB-\d+$/.test(clientStartParam)
-        ? clientStartParam
-        : null);
 
     if (!verifiedTelegramUser?.id || !verifiedTelegramUser.first_name) {
       return NextResponse.json(
@@ -111,6 +106,29 @@ export async function POST(request: NextRequest) {
       supabaseUrl,
       supabaseSecretKey
     );
+
+    let referralStartParam =
+      telegramUser?.startParam ??
+      (clientStartParam && /^PB-\d+$/.test(clientStartParam)
+        ? clientStartParam
+        : null);
+    let pendingReferralId: string | null = null;
+
+    if (!referralStartParam) {
+      const { data: pendingReferral } = await supabase
+        .from("pending_referrals")
+        .select("id, referral_pablot_id")
+        .eq("telegram_id", verifiedTelegramUser.id)
+        .is("consumed_at", null)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (pendingReferral?.referral_pablot_id) {
+        referralStartParam = pendingReferral.referral_pablot_id;
+        pendingReferralId = pendingReferral.id;
+      }
+    }
 
     const { data: existingUser, error: lookupError } = await supabase
       .from("users")
@@ -176,6 +194,11 @@ export async function POST(request: NextRequest) {
 
             if (referralError && referralError.code !== "23505") {
               console.error("Referral attribution error:", referralError);
+            } else if (pendingReferralId) {
+              await supabase
+                .from("pending_referrals")
+                .update({ consumed_at: new Date().toISOString() })
+                .eq("id", pendingReferralId);
             }
           }
         }
@@ -232,6 +255,11 @@ export async function POST(request: NextRequest) {
 
         if (referralError && referralError.code !== "23505") {
           console.error("Referral attribution error:", referralError);
+        } else if (pendingReferralId) {
+          await supabase
+            .from("pending_referrals")
+            .update({ consumed_at: new Date().toISOString() })
+            .eq("id", pendingReferralId);
         }
       }
     }
