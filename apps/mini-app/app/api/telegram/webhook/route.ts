@@ -102,19 +102,32 @@ export async function POST(request: Request) {
       const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY;
 
       if (supabaseUrl && supabaseSecretKey) {
-        await fetch(`${supabaseUrl}/rest/v1/pending_referrals`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            apikey: supabaseSecretKey,
-            Authorization: `Bearer ${supabaseSecretKey}`,
-            Prefer: "resolution=merge-duplicates",
-          },
-          body: JSON.stringify({
-            telegram_id: chatId,
-            referral_pablot_id: referralId,
-          }),
-        });
+        const pendingReferralResponse = await fetch(
+          `${supabaseUrl}/rest/v1/pending_referrals`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              apikey: supabaseSecretKey,
+              Authorization: `Bearer ${supabaseSecretKey}`,
+              Prefer: "return=representation",
+            },
+            body: JSON.stringify({
+              telegram_id: chatId,
+              referral_pablot_id: referralId,
+            }),
+          }
+        );
+
+        if (!pendingReferralResponse.ok) {
+          const errorBody = await pendingReferralResponse.text();
+          console.error(
+            "Pending referral storage failed:",
+            pendingReferralResponse.status,
+            errorBody
+          );
+          throw new Error("PENDING_REFERRAL_STORAGE_FAILED");
+        }
       }
     }
 
