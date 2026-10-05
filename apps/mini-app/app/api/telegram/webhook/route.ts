@@ -62,11 +62,22 @@ async function sendTelegramMessage(
 export async function POST(request: Request) {
   try {
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
+    const webhookSecret = process.env.TELEGRAM_WEBHOOK_SECRET;
+    const receivedSecret = request.headers.get(
+      "X-Telegram-Bot-Api-Secret-Token"
+    );
 
-    if (!botToken) {
+    if (!botToken || !webhookSecret) {
       return NextResponse.json(
-        { error: "TELEGRAM_BOT_TOKEN is missing." },
+        { error: "Telegram webhook configuration is incomplete." },
         { status: 500 }
+      );
+    }
+
+    if (receivedSecret !== webhookSecret) {
+      return NextResponse.json(
+        { error: "Unauthorized." },
+        { status: 401 }
       );
     }
 
