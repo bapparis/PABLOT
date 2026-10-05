@@ -19,6 +19,9 @@ export default function Home() {
     const initializeTelegramUser = async () => {
       const webApp = window.Telegram?.WebApp;
       const initData = webApp?.initData;
+      const startParam = new URLSearchParams(
+        window.location.search
+      ).get("startapp");
 
       if (!initData) return;
 
@@ -28,7 +31,10 @@ export default function Home() {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ initData }),
+          body: JSON.stringify({
+            initData,
+            startParam,
+          }),
         });
       } catch {
         // Keep the existing home screen available if account sync fails.

@@ -67,6 +67,8 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const initData = body?.initData;
+    const clientStartParam =
+      typeof body?.startParam === "string" ? body.startParam.trim() : null;
 
     if (!initData || typeof initData !== "string") {
       return NextResponse.json(
@@ -92,7 +94,11 @@ export async function POST(request: NextRequest) {
     );
 
     const verifiedTelegramUser = telegramUser?.user;
-    const referralStartParam = telegramUser?.startParam;
+    const referralStartParam =
+      telegramUser?.startParam ??
+      (clientStartParam && /^PB-\d+$/.test(clientStartParam)
+        ? clientStartParam
+        : null);
 
     if (!verifiedTelegramUser?.id || !verifiedTelegramUser.first_name) {
       return NextResponse.json(
