@@ -16,6 +16,29 @@ export default function Home() {
   const [treasureLoading, setTreasureLoading] = useState(false);
 
   useEffect(() => {
+    const initializeTelegramUser = async () => {
+      const webApp = window.Telegram?.WebApp;
+      const initData = webApp?.initData;
+
+      if (!initData) return;
+
+      try {
+        await fetch("/api/telegram/user", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ initData }),
+        });
+      } catch {
+        // Keep the existing home screen available if account sync fails.
+      }
+    };
+
+    initializeTelegramUser();
+  }, []);
+
+  useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | null = null;
     let attempts = 0;
 

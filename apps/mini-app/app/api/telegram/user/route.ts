@@ -144,6 +144,37 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      if (referralStartParam && referralStartParam !== updatedUser.pablot_id) {
+        const { data: existingReferral, error: referralLookupError } =
+          await supabase
+            .from("referrals")
+            .select("id")
+            .eq("referred_user_id", updatedUser.id)
+            .maybeSingle();
+
+        if (!referralLookupError && !existingReferral) {
+          const { data: referrer } = await supabase
+            .from("users")
+            .select("id")
+            .eq("pablot_id", referralStartParam)
+            .maybeSingle();
+
+          if (referrer && referrer.id !== updatedUser.id) {
+            const { error: referralError } = await supabase
+              .from("referrals")
+              .insert({
+                referrer_id: referrer.id,
+                referred_user_id: updatedUser.id,
+                status: "pending",
+              });
+
+            if (referralError && referralError.code !== "23505") {
+              console.error("Referral attribution error:", referralError);
+            }
+          }
+        }
+      }
+
       return NextResponse.json({ user: updatedUser });
     }
 
