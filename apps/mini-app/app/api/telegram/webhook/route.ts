@@ -131,8 +131,40 @@ export async function POST(request: Request) {
       }
     }
 
+    let inviterLabel = "A PABLOT user";
+
+    if (referralId && /^PB-\d+$/.test(referralId)) {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY;
+
+      if (supabaseUrl && supabaseSecretKey) {
+        const inviterResponse = await fetch(
+          `${supabaseUrl}/rest/v1/users?select=username&eq.pablot_id=eq.${encodeURIComponent(referralId)}&limit=1`,
+          {
+            method: "GET",
+            headers: {
+              apikey: supabaseSecretKey,
+              Authorization: `Bearer ${supabaseSecretKey}`,
+            },
+          }
+        );
+
+        if (inviterResponse.ok) {
+          const inviterRows = await inviterResponse.json();
+          const inviterUsername = inviterRows?.[0]?.username;
+
+          if (
+            typeof inviterUsername === "string" &&
+            inviterUsername.trim()
+          ) {
+            inviterLabel = `@${inviterUsername.trim().replace(/^@+/, "")}`;
+          }
+        }
+      }
+    }
+
     const welcomeText = referralId
-      ? "🚀 Welcome to PABLOT!\n\nYou were invited to join PABLOT. Open the Mini App below to get started."
+      ? `🚀 Welcome to PABLOT!\n\n${inviterLabel} invited you to join PABLOT. 🎉\nComplete tasks, earn PP, and unlock rewards.\n\nTap below to get started.`
       : "🚀 Welcome to PABLOT!\n\nEarn PP, complete tasks, and grow your rewards.";
 
     await sendTelegramMessage(botToken, chatId, welcomeText, referralId);
