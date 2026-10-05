@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
 import { isMaintenanceEnabled } from "@/lib/settings/maintenance";
+import { sendReferralQualifiedNotification } from "@/lib/telegram/referral";
 
 interface TelegramUser {
   id: number;
@@ -317,23 +318,46 @@ export async function POST(request: NextRequest) {
     // Check whether this user was referred and update qualification progress.
     const { data: referral } = await supabase
       .from("referrals")
-      .select("id, status")
+      .select("id, status, referrer_id")
       .eq("referred_user_id", user.id)
       .maybeSingle();
 
     if (referral && referral.status === "pending") {
-      const { error: qualificationError } = await supabase.rpc(
-        "qualify_referral_and_reward",
-        {
+      const { data: qualificationResult, error: qualificationError } =
+        await supabase.rpc("qualify_referral_and_reward", {
           p_referral_id: referral.id,
-        }
-      );
+        });
 
       if (qualificationError) {
         console.error(
           "Referral qualification error:",
           qualificationError
         );
+      } else {
+        const qualification = Array.isArray(qualificationResult)
+          ? qualificationResult[0]
+          : qualificationResult;
+
+        const rewardPp = Number(qualification?.reward_pp ?? 0);
+
+        if (rewardPp > 0) {
+          const { data: referrer } = await supabase
+            .from("users")
+            .select("telegram_id")
+            .eq("id", referral.referrer_id)
+            .maybeSingle();
+
+          const botToken = process.env.TELEGRAM_BOT_TOKEN;
+
+          if (referrer?.telegram_id && botToken) {
+            await sendReferralQualifiedNotification(
+              botToken,
+              referrer.telegram_id,
+              telegramUser.username ?? null,
+              rewardPp
+            );
+          }
+        }
       }
     }
 

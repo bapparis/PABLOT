@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { isMaintenanceEnabled } from "@/lib/settings/maintenance";
+import { sendReferralQualifiedNotification } from "@/lib/telegram/referral";
 
 function getAdminSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -104,7 +105,7 @@ export async function GET(request: NextRequest) {
 
     const { data: user, error: userError } = await supabase
       .from("users")
-      .select("id, pablot_id, pp_balance")
+      .select("id, pablot_id, pp_balance, telegram_id")
       .eq("telegram_id", telegramUser.id)
       .maybeSingle();
 
@@ -155,18 +156,35 @@ export async function GET(request: NextRequest) {
         continue;
       }
 
-      const { error: qualificationError } = await supabase.rpc(
-        "qualify_referral_and_reward",
-        {
+      const { data: qualificationResult, error: qualificationError } =
+        await supabase.rpc("qualify_referral_and_reward", {
           p_referral_id: referral.id,
-        }
-      );
+        });
 
       if (qualificationError) {
         console.error(
           "Referral qualification refresh error:",
           qualificationError
         );
+      } else {
+        const qualification = Array.isArray(qualificationResult)
+          ? qualificationResult[0]
+          : qualificationResult;
+
+        const rewardPp = Number(qualification?.reward_pp ?? 0);
+
+        if (rewardPp > 0 && user.telegram_id && botToken) {
+          const referredUser = Array.isArray(referral.referred_user)
+            ? referral.referred_user[0]
+            : referral.referred_user;
+
+          await sendReferralQualifiedNotification(
+            botToken,
+            user.telegram_id,
+            referredUser?.username ?? null,
+            rewardPp
+          );
+        }
       }
     }
 
