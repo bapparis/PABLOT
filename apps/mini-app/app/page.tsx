@@ -16,11 +16,31 @@ export default function Home() {
   const [treasureLoading, setTreasureLoading] = useState(false);
 
   useEffect(() => {
-    if (typeof Adsgram !== "undefined") {
-      adController.current = Adsgram.init({
-        blockId: "51135",
-      });
-    }
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let attempts = 0;
+
+    const initializeAdsgram = () => {
+      if (typeof Adsgram !== "undefined") {
+        adController.current = Adsgram.init({
+          blockId: "51135",
+        });
+        return;
+      }
+
+      attempts += 1;
+
+      if (attempts < 20) {
+        timer = setTimeout(initializeAdsgram, 500);
+      }
+    };
+
+    initializeAdsgram();
+
+    return () => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+    };
   }, []);
 
   const loadDailyCheck = async () => {
@@ -236,36 +256,7 @@ export default function Home() {
     setAdMessage("");
 
     try {
-      const monetag = (
-        window as typeof window & {
-          show_11934399?: (options?: {
-            ymid?: string;
-            requestVar?: string;
-          }) => Promise<unknown>;
-        }
-      ).show_11934399;
-
-      if (!monetag) {
-        setAdMessage("Please wait a few seconds, then try again.");
-        return;
-      }
-
-      setAdMessage("📺 Loading rewarded ad...");
-
       const webApp = window.Telegram?.WebApp;
-      const telegramId = webApp?.initDataUnsafe?.user?.id;
-
-      const ymid = telegramId
-        ? `pablot_daily_${telegramId}_${Date.now()}_${crypto.randomUUID()}`
-        : `pablot_daily_${Date.now()}_${crypto.randomUUID()}`;
-
-      await monetag({
-        ymid,
-        requestVar: "daily_check",
-      });
-
-      setAdMessage("✅ Ad completed. Confirming reward...");
-
       const initData = webApp?.initData;
 
       if (!initData) {
@@ -273,49 +264,134 @@ export default function Home() {
         return;
       }
 
-      setDailyLoading(true);
-
-      let confirmed = false;
-
-      for (let attempt = 0; attempt < 20; attempt++) {
-        const response = await fetch("/api/monetag/claim", {
+      const attemptResponse = await fetch(
+        "/api/adsgram/attempt",
+        {
           method: "POST",
           headers: {
-            "x-telegram-init-data": initData,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ ymid }),
-        });
+          body: JSON.stringify({ initData }),
+        }
+      );
+
+      const attemptData = await attemptResponse.json();
+
+      if (!attemptResponse.ok) {
+        if (
+          attemptData.error ===
+          "AD_ATTEMPT_ALREADY_PENDING"
+        ) {
+          setAdMessage(
+            "⏳ Your previous ad is still being confirmed."
+          );
+        } else {
+          setAdMessage(
+            "Unable to start the ad. Please try again."
+          );
+        }
+
+        return;
+      }
+
+      const attemptId = attemptData.attemptId;
+
+      if (!attemptId) {
+        setAdMessage(
+          "Unable to create an ad attempt."
+        );
+        return;
+      }
+
+      if (!adController.current) {
+        setAdMessage(
+          "Ads are still loading. Please try again."
+        );
+        return;
+      }
+
+      setAdMessage("📺 Loading rewarded ad...");
+
+      const adResult = await adController.current.show();
+
+      if (!adResult.done || adResult.error) {
+        setAdMessage(
+          "The ad could not be completed."
+        );
+        return;
+      }
+
+      setAdMessage(
+        "⏳ Ad finished. Confirming reward..."
+      );
+
+      let consumed = false;
+
+      for (let attempt = 0; attempt < 20; attempt++) {
+        const response = await fetch(
+          "/api/adsgram/consume",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              initData,
+              attemptId,
+            }),
+          }
+        );
 
         const data = await response.json();
 
-        if (response.ok && data.status === "CLAIMED") {
-          confirmed = true;
+        if (
+          response.ok &&
+          (data.status === "CONSUMED" ||
+            data.status === "ALREADY_CONSUMED")
+        ) {
+          consumed = true;
 
-          if (data.reward_granted) {
-            setAdMessage("✅ Ad reward confirmed.");
+          if (data.status === "CONSUMED") {
+            setAdMessage(
+              `🎉 +${data.rewardPp ?? 10} PP earned!`
+            );
           } else {
-            setAdMessage("✅ Ad completed and reward confirmed.");
+            setAdMessage(
+              "✅ Ad reward already confirmed."
+            );
           }
 
           break;
         }
 
+        if (
+          response.status !== 409 ||
+          data.error !== "AD_NOT_CONFIRMED"
+        ) {
+          setAdMessage(
+            "Unable to confirm the ad reward."
+          );
+          break;
+        }
+
         if (attempt < 19) {
-          await new Promise((resolve) => setTimeout(resolve, 2000));
+          await new Promise((resolve) =>
+            setTimeout(resolve, 2000)
+          );
         }
       }
 
-      if (!confirmed) {
+      if (!consumed) {
         setAdMessage(
-          "⏳ Please wait while we confirm your ad..."
+          "⏳ Ad completed. Reward confirmation is still pending."
         );
       }
     } catch {
-      setAdMessage("The ad could not be completed. Please wait a few seconds and try again.");
+      setAdMessage(
+        "The ad could not be completed. Please try again."
+      );
     } finally {
       setAdLoading(false);
-      setDailyLoading(false);
     }
   };
   return (

@@ -42,42 +42,39 @@ export async function GET(request: NextRequest) {
 
   const telegramId = Number(userId);
 
-  const { data: user, error: userError } = await supabase
-    .from("users")
-    .select("id")
-    .eq("telegram_id", telegramId)
-    .maybeSingle();
+  const { data, error } = await supabase.rpc(
+    "confirm_adsgram_ad_attempt",
+    {
+      p_telegram_id: telegramId,
+    }
+  );
 
-  if (userError) {
+  if (error) {
     return NextResponse.json(
-      { ok: false, error: "USER_LOOKUP_FAILED" },
+      {
+        ok: false,
+        error: "CONFIRMATION_FAILED",
+      },
       { status: 500 }
     );
   }
 
-  if (!user) {
-    return NextResponse.json(
-      { ok: false, error: "USER_NOT_FOUND" },
-      { status: 404 }
-    );
-  }
+  const confirmation = Array.isArray(data) ? data[0] : null;
 
-  const { error: insertError } = await supabase
-    .from("adsgram_reward_confirmations")
-    .insert({
-      user_id: user.id,
-      telegram_id: telegramId,
-    });
-
-  if (insertError) {
+  if (!confirmation) {
     return NextResponse.json(
-      { ok: false, error: "CONFIRMATION_SAVE_FAILED" },
-      { status: 500 }
+      {
+        ok: false,
+        error: "NO_PENDING_ATTEMPT",
+      },
+      { status: 409 }
     );
   }
 
   return NextResponse.json({
     ok: true,
-    message: "AdsGram reward confirmation recorded",
+    attemptId: confirmation.attempt_id,
+    status: confirmation.status,
+    confirmedAt: confirmation.confirmed_at,
   });
 }
