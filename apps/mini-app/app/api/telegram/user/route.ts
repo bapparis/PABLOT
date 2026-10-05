@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
+import { isMaintenanceEnabled } from "@/lib/settings/maintenance";
 
 function verifyTelegramInitData(initData: string, botToken: string) {
   const params = new URLSearchParams(initData);
@@ -53,7 +54,10 @@ function verifyTelegramInitData(initData: string, botToken: string) {
   }
 
   try {
-    return JSON.parse(userRaw);
+    return {
+      user: JSON.parse(userRaw),
+      startParam: params.get("start_param") ?? null,
+    };
   } catch {
     return null;
   }
@@ -87,7 +91,10 @@ export async function POST(request: NextRequest) {
       botToken
     );
 
-    if (!telegramUser?.id || !telegramUser.first_name) {
+    const verifiedTelegramUser = telegramUser?.user;
+    const referralStartParam = telegramUser?.startParam;
+
+    if (!verifiedTelegramUser?.id || !verifiedTelegramUser.first_name) {
       return NextResponse.json(
         { error: "Invalid Telegram authentication data." },
         { status: 401 }
@@ -104,7 +111,7 @@ export async function POST(request: NextRequest) {
       .select(
         "id, telegram_id, pablot_id, username, first_name, last_name, photo_url, pp_balance, total_earned, language, notifications_enabled"
       )
-      .eq("telegram_id", telegramUser.id)
+      .eq("telegram_id", verifiedTelegramUser.id)
       .maybeSingle();
 
     if (lookupError) {
@@ -118,13 +125,13 @@ export async function POST(request: NextRequest) {
       const { data: updatedUser, error: updateError } = await supabase
         .from("users")
         .update({
-          username: telegramUser.username ?? null,
-          first_name: telegramUser.first_name,
-          last_name: telegramUser.last_name ?? null,
-          photo_url: telegramUser.photo_url ?? null,
+          username: verifiedTelegramUser.username ?? null,
+          first_name: verifiedTelegramUser.first_name,
+          last_name: verifiedTelegramUser.last_name ?? null,
+          photo_url: verifiedTelegramUser.photo_url ?? null,
           updated_at: new Date().toISOString(),
         })
-        .eq("telegram_id", telegramUser.id)
+        .eq("telegram_id", verifiedTelegramUser.id)
         .select(
           "id, telegram_id, pablot_id, username, first_name, last_name, photo_url, pp_balance, total_earned, language, notifications_enabled"
         )
@@ -140,14 +147,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ user: updatedUser });
     }
 
+    if (await isMaintenanceEnabled("newAccounts")) {
+      return NextResponse.json(
+        {
+          error: "NEW_ACCOUNTS_MAINTENANCE",
+        },
+        { status: 503 }
+      );
+    }
+
     const { data: newUser, error: insertError } = await supabase
       .from("users")
       .insert({
-        telegram_id: telegramUser.id,
-        username: telegramUser.username ?? null,
-        first_name: telegramUser.first_name,
-        last_name: telegramUser.last_name ?? null,
-        photo_url: telegramUser.photo_url ?? null,
+        telegram_id: verifiedTelegramUser.id,
+        username: verifiedTelegramUser.username ?? null,
+        first_name: verifiedTelegramUser.first_name,
+        last_name: verifiedTelegramUser.last_name ?? null,
+        photo_url: verifiedTelegramUser.photo_url ?? null,
       })
       .select(
         "id, telegram_id, pablot_id, username, first_name, last_name, photo_url, pp_balance, total_earned, language, notifications_enabled"
@@ -159,6 +175,28 @@ export async function POST(request: NextRequest) {
         { error: insertError.message },
         { status: 500 }
       );
+    }
+
+    if (referralStartParam && referralStartParam !== newUser.pablot_id) {
+      const { data: referrer } = await supabase
+        .from("users")
+        .select("id")
+        .eq("pablot_id", referralStartParam)
+        .maybeSingle();
+
+      if (referrer && referrer.id !== newUser.id) {
+        const { error: referralError } = await supabase
+          .from("referrals")
+          .insert({
+            referrer_id: referrer.id,
+            referred_user_id: newUser.id,
+            status: "pending",
+          });
+
+        if (referralError && referralError.code !== "23505") {
+          console.error("Referral attribution error:", referralError);
+        }
+      }
     }
 
     return NextResponse.json({ user: newUser });

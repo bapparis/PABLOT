@@ -1,7 +1,19 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { isMaintenanceEnabled } from "@/lib/settings/maintenance";
 
 export async function GET() {
+  if (await isMaintenanceEnabled("tasks")) {
+    return NextResponse.json(
+      {
+        error:
+          "Tasks are temporarily unavailable. Please try again later.",
+        code: "TASKS_MAINTENANCE",
+      },
+      { status: 503 }
+    );
+  }
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY;
 

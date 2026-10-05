@@ -59,6 +59,13 @@ export default function AdminUsersClient() {
   return (
     <main className="mx-auto w-full max-w-3xl px-5 pb-10">
       <div className="mb-7">
+        <a
+          href="/admin/dashboard"
+          className="mb-5 inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.025] px-3 py-2 text-xs font-bold text-white/60 transition hover:border-[#59D9FF]/30 hover:text-[#59D9FF]"
+        >
+          ← Back to Overview
+        </a>
+
         <p className="text-[10px] font-black uppercase tracking-[0.25em] text-[#59D9FF]">
           PABLOT CONTROL
         </p>

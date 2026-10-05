@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
+import { isMaintenanceEnabled } from "@/lib/settings/maintenance";
 
 interface TelegramUser {
   id: number;
@@ -77,6 +78,15 @@ async function getAuthenticatedUser(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  if (await isMaintenanceEnabled("dailyCheckin")) {
+    return NextResponse.json(
+      {
+        error: "DAILY_CHECKIN_MAINTENANCE",
+      },
+      { status: 503 }
+    );
+  }
+
   const auth = await getAuthenticatedUser(request);
 
   if ("error" in auth) {
@@ -126,6 +136,15 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  if (await isMaintenanceEnabled("dailyCheckin")) {
+    return NextResponse.json(
+      {
+        error: "DAILY_CHECKIN_MAINTENANCE",
+      },
+      { status: 503 }
+    );
+  }
+
   const auth = await getAuthenticatedUser(request);
 
   if ("error" in auth) {
@@ -154,6 +173,29 @@ export async function POST(request: NextRequest) {
   }
 
   const result = Array.isArray(data) ? data[0] : data;
+
+  // Check whether this user was referred and update qualification progress.
+  const { data: referral } = await supabase
+    .from("referrals")
+    .select("id, status")
+    .eq("referred_user_id", user.id)
+    .maybeSingle();
+
+  if (referral && referral.status === "pending") {
+    const { error: qualificationError } = await supabase.rpc(
+      "qualify_referral_and_reward",
+      {
+        p_referral_id: referral.id,
+      }
+    );
+
+    if (qualificationError) {
+      console.error(
+        "Referral qualification error:",
+        qualificationError
+      );
+    }
+  }
 
   return NextResponse.json({
     streak_day: result?.streak_day ?? 0,

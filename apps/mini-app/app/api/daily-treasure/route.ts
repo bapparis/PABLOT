@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
+import { isMaintenanceEnabled } from "@/lib/settings/maintenance";
 
 interface TelegramUser {
   id: number;
@@ -45,6 +46,15 @@ function verifyTelegramInitData(
 }
 
 export async function POST(request: NextRequest) {
+  if (await isMaintenanceEnabled("dailyCheckin")) {
+    return NextResponse.json(
+      {
+        error: "DAILY_CHECKIN_MAINTENANCE",
+      },
+      { status: 503 }
+    );
+  }
+
   const initData = request.headers.get("x-telegram-init-data");
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
 

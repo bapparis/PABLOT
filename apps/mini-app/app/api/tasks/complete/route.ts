@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
+import { isMaintenanceEnabled } from "@/lib/settings/maintenance";
 
 interface TelegramUser {
   id: number;
@@ -134,6 +135,17 @@ async function verifyChannelMembership(
 
 export async function POST(request: NextRequest) {
   try {
+    if (await isMaintenanceEnabled("tasks")) {
+      return NextResponse.json(
+        {
+          error:
+            "Tasks are temporarily unavailable. Please try again later.",
+          code: "TASKS_MAINTENANCE",
+        },
+        { status: 503 }
+      );
+    }
+
     const body = await request.json();
 
     const initData = body?.initData;
@@ -301,6 +313,29 @@ export async function POST(request: NextRequest) {
     const result = Array.isArray(data)
       ? data[0]
       : data;
+
+    // Check whether this user was referred and update qualification progress.
+    const { data: referral } = await supabase
+      .from("referrals")
+      .select("id, status")
+      .eq("referred_user_id", user.id)
+      .maybeSingle();
+
+    if (referral && referral.status === "pending") {
+      const { error: qualificationError } = await supabase.rpc(
+        "qualify_referral_and_reward",
+        {
+          p_referral_id: referral.id,
+        }
+      );
+
+      if (qualificationError) {
+        console.error(
+          "Referral qualification error:",
+          qualificationError
+        );
+      }
+    }
 
     return NextResponse.json({
       success: true,

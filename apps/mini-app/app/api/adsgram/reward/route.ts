@@ -1,7 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { isMaintenanceEnabled } from "@/lib/settings/maintenance";
 
 export async function GET(request: NextRequest) {
+  if (await isMaintenanceEnabled("watchAds")) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "WATCH_ADS_MAINTENANCE",
+      },
+      { status: 503 }
+    );
+  }
+
   const userId =
     request.nextUrl.searchParams.get("userId") ??
     request.nextUrl.searchParams.get("userid") ??

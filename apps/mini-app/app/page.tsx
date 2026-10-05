@@ -83,7 +83,7 @@ export default function Home() {
       ).show_11934399;
 
       if (!monetag) {
-        setAdMessage("Monetag ad is not ready yet. Please try again.");
+        setAdMessage("Please wait a few seconds, then try again.");
         return;
       }
 
@@ -119,7 +119,9 @@ export default function Home() {
             method: "POST",
             headers: {
               "x-telegram-init-data": initData,
+              "Content-Type": "application/json",
             },
+            body: JSON.stringify({ ymid }),
           });
 
           const data = await response.json();
@@ -139,13 +141,13 @@ export default function Home() {
 
         if (!confirmed) {
           setAdMessage(
-            `⏳ Ad ${adNumber}/3 completed. Waiting for confirmation...`
+            `⏳ Please wait while we confirm ad ${adNumber}/3...`
           );
           return;
         }
 
         const completed = Math.min(
-          rewardData?.ads_completed ?? adNumber,
+          Number(rewardData?.ads_completed ?? 0),
           3
         );
 
@@ -172,7 +174,7 @@ export default function Home() {
         }
       }
     } catch {
-      setAdMessage("Ad was skipped or could not be completed.");
+      setAdMessage("The ad could not be completed. Please wait a few seconds and try again.");
     } finally {
       setDailyLoading(false);
     }
@@ -244,7 +246,7 @@ export default function Home() {
       ).show_11934399;
 
       if (!monetag) {
-        setAdMessage("Monetag ad is not ready yet. Please try again.");
+        setAdMessage("Please wait a few seconds, then try again.");
         return;
       }
 
@@ -280,7 +282,9 @@ export default function Home() {
           method: "POST",
           headers: {
             "x-telegram-init-data": initData,
+            "Content-Type": "application/json",
           },
+          body: JSON.stringify({ ymid }),
         });
 
         const data = await response.json();
@@ -304,11 +308,11 @@ export default function Home() {
 
       if (!confirmed) {
         setAdMessage(
-          "⏳ Ad completed. Waiting for Monetag reward confirmation..."
+          "⏳ Please wait while we confirm your ad..."
         );
       }
     } catch {
-      setAdMessage("Ad was skipped or could not be completed.");
+      setAdMessage("The ad could not be completed. Please wait a few seconds and try again.");
     } finally {
       setAdLoading(false);
       setDailyLoading(false);

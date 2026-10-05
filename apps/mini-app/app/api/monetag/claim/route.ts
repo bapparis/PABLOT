@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
+import { isMaintenanceEnabled } from "@/lib/settings/maintenance";
 
 interface TelegramUser {
   id: number;
@@ -46,13 +47,30 @@ function verifyTelegramInitData(
 }
 
 export async function POST(request: NextRequest) {
+  if (await isMaintenanceEnabled("watchAds")) {
+    return NextResponse.json(
+      { error: "WATCH_ADS_MAINTENANCE" },
+      { status: 503 }
+    );
+  }
+
   const initData = request.headers.get("x-telegram-init-data");
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  const body = await request.json().catch(() => ({}));
+  const ymid =
+    typeof body?.ymid === "string" ? body.ymid.trim() : "";
 
   if (!initData || !botToken) {
     return NextResponse.json(
       { error: "UNAUTHORIZED" },
       { status: 401 }
+    );
+  }
+
+  if (!ymid) {
+    return NextResponse.json(
+      { error: "MISSING_YMID" },
+      { status: 400 }
     );
   }
 
@@ -90,6 +108,7 @@ export async function POST(request: NextRequest) {
     "claim_monetag_daily_ad_reward",
     {
       p_user_id: user.id,
+      p_ymid: ymid,
     }
   );
 

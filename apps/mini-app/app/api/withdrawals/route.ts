@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
+import { isMaintenanceEnabled } from "@/lib/settings/maintenance";
 
 function verifyTelegramInitData(initData: string, botToken: string) {
   const params = new URLSearchParams(initData);
@@ -171,6 +172,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "Invalid Telegram authentication data." },
         { status: 401 }
+      );
+    }
+
+    if (await isMaintenanceEnabled("withdrawals")) {
+      return NextResponse.json(
+        {
+          error:
+            "Withdrawals are temporarily unavailable. Please try again later.",
+        },
+        { status: 503 }
       );
     }
 
