@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 
 export default function AdminPage() {
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -19,7 +20,7 @@ export default function AdminPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ email, password }),
       });
 
       const data = await response.json();
@@ -29,7 +30,7 @@ export default function AdminPage() {
         return;
       }
 
-      window.location.href = "/admin/tasks";
+      window.location.href = "/admin/dashboard";
     } catch {
       setError("Unable to connect to the admin server.");
     } finally {
@@ -100,7 +101,23 @@ export default function AdminPage() {
             <form onSubmit={handleLogin} className="space-y-4">
               <label className="block">
                 <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.12em] text-white/40">
-                  Admin Password
+                  Owner Email
+                </span>
+
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  placeholder="owner@example.com"
+                  autoComplete="username"
+                  required
+                  className="min-h-12 w-full rounded-2xl border border-white/10 bg-black/20 px-4 text-base text-white outline-none transition placeholder:text-white/20 focus:border-[#59D9FF]/40 focus:bg-black/30"
+                />
+              </label>
+
+              <label className="block">
+                <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.12em] text-white/40">
+                  Owner Password
                 </span>
 
                 <input
