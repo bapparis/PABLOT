@@ -94,14 +94,14 @@ function isValidWatchConfig(body: any) {
   }
 
   if (
-    body?.watch_config?.pinned !== undefined &&
+    body?.pinned !== undefined &&
     typeof body.pinned !== "boolean"
   ) {
     return "Pinned must be boolean.";
   }
 
   if (
-    body?.watch_config?.pin_order !== undefined &&
+    body?.pin_order !== undefined &&
     body.pin_order !== null &&
     (!Number.isInteger(body.pin_order) ||
       body.pin_order < 1 ||
