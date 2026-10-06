@@ -685,7 +685,7 @@ export default function TasksPage() {
                     </span>
                   </div>
 
-                  <p className="mt-0.5 truncate text-[10px] text-white/35">
+                  <p className="mt-1 line-clamp-2 text-[10px] leading-4 text-white/50">
                     {task.description}
                   </p>
 
