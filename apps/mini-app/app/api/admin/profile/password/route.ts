@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { isOwner } from "@/lib/admin/authorization";
+import { sendPablotSecurityEmail } from "@/lib/email/resend";
 import {
   getOwnerAccount,
   hashOwnerPassword,
@@ -110,6 +111,34 @@ export async function POST(request: Request) {
     if (error) {
       throw new Error(
         `Unable to update owner password: ${error.message}`
+      );
+    }
+
+    try {
+      await sendPablotSecurityEmail({
+        to: owner.email,
+        subject: "PABLOT owner password changed",
+        html: `
+          <div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;padding:24px;color:#111">
+            <h2 style="margin-bottom:8px">PABLOT Security</h2>
+            <p>Your PABLOT owner account password was successfully changed.</p>
+            <p style="color:#666">
+              All previous owner sessions have been invalidated.
+              You must sign in again with your new password.
+            </p>
+            <p style="color:#b91c1c">
+              If you did not make this change, secure your PABLOT account immediately.
+            </p>
+            <p style="margin-top:24px;font-size:13px;color:#888">
+              PABLOT Security System
+            </p>
+          </div>
+        `,
+      });
+    } catch (notificationError) {
+      console.error(
+        "Owner password change notification failed:",
+        notificationError
       );
     }
 

@@ -16,6 +16,19 @@ export default function AdminProfilePage() {
   const [profile, setProfile] = useState<OwnerProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [screen, setScreen] = useState<
+    "profile" | "name" | "email" | "email-current" | "email-new"
+  >("profile");
+  const [displayName, setDisplayName] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [emailSaving, setEmailSaving] = useState(false);
+  const [emailError, setEmailError] = useState("");
+  const [emailRequestId, setEmailRequestId] = useState("");
+  const [emailCode, setEmailCode] = useState("");
+  const [emailVerifying, setEmailVerifying] = useState(false);
+  const [emailTarget, setEmailTarget] = useState("");
+  const [nameSaving, setNameSaving] = useState(false);
+  const [nameError, setNameError] = useState("");
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -62,6 +75,586 @@ export default function AdminProfilePage() {
     };
   }, []);
 
+  if (screen === "email-current" && profile) {
+    return (
+      <main className="mx-auto w-full max-w-xl px-5 pb-10 sm:px-8">
+        <button
+          type="button"
+          onClick={() => {
+            setScreen("profile");
+            setEmailError("");
+            setEmailCode("");
+          }}
+          className="mb-6 flex min-h-11 items-center gap-2 text-sm font-bold text-white/50 transition hover:text-white"
+        >
+          <span className="text-lg">←</span>
+          Back to Profile
+        </button>
+
+        <div className="mb-6">
+          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#59D9FF]">
+            Step 1 of 2
+          </p>
+
+          <h1 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">
+            Verify Current Email
+          </h1>
+
+          <p className="mt-2 text-sm leading-6 text-white/45">
+            Enter the 6-digit verification code sent to your current owner email.
+          </p>
+        </div>
+
+        <section className="rounded-2xl border border-white/10 bg-[#0d141e] p-5">
+          <div className="rounded-xl border border-white/8 bg-white/[0.025] p-4">
+            <p className="text-[10px] font-black uppercase tracking-wider text-white/35">
+              Code sent to
+            </p>
+
+            <p className="mt-2 truncate text-sm font-bold text-white/75">
+              {profile.email}
+            </p>
+          </div>
+
+          <label className="mt-5 block text-[10px] font-black uppercase tracking-wider text-white/35">
+            Verification code
+          </label>
+
+          <input
+            value={emailCode}
+            onChange={(event) => {
+              const value = event.target.value
+                .replace(/\D/g, "")
+                .slice(0, 6);
+
+              setEmailCode(value);
+              setEmailError("");
+            }}
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            maxLength={6}
+            autoFocus
+            placeholder="000000"
+            className="mt-3 w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-4 text-center text-2xl font-black tracking-[0.35em] text-white outline-none placeholder:text-white/20 focus:border-[#59D9FF]/40"
+          />
+
+          {emailError && (
+            <p className="mt-3 text-xs font-bold text-red-300">
+              {emailError}
+            </p>
+          )}
+
+          <button
+            type="button"
+            disabled={emailVerifying || emailCode.length !== 6}
+            onClick={async () => {
+              if (emailCode.length !== 6) {
+                setEmailError(
+                  "Enter the 6-digit verification code."
+                );
+                return;
+              }
+
+              setEmailVerifying(true);
+              setEmailError("");
+
+              try {
+                const response = await fetch(
+                  "/api/admin/profile/email/verify-current",
+                  {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                      requestId: emailRequestId,
+                      code: emailCode,
+                    }),
+                  }
+                );
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                  throw new Error(
+                    data?.error ||
+                      "Unable to verify current email."
+                  );
+                }
+
+                setEmailCode("");
+                setEmailError("");
+                setEmailTarget(newEmail);
+                setScreen("email-new");
+              } catch (err) {
+                setEmailError(
+                  err instanceof Error
+                    ? err.message
+                    : "Unable to verify current email."
+                );
+              } finally {
+                setEmailVerifying(false);
+              }
+            }}
+            className="mt-5 w-full rounded-xl bg-[#59D9FF] px-4 py-3 text-sm font-black text-[#061018] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {emailVerifying
+              ? "Verifying…"
+              : "Verify Current Email"}
+          </button>
+        </section>
+
+        <section className="mt-4 rounded-2xl border border-[#59D9FF]/10 bg-[#59D9FF]/[0.035] p-4">
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#59D9FF]">
+            Security
+          </p>
+
+          <p className="mt-2 text-xs leading-5 text-white/40">
+            The current email must be verified before the new email receives its verification code.
+          </p>
+        </section>
+      </main>
+    );
+  }
+
+  if (screen === "email-new" && profile) {
+    return (
+      <main className="mx-auto w-full max-w-xl px-5 pb-10 sm:px-8">
+        <button
+          type="button"
+          onClick={() => {
+            setScreen("profile");
+            setEmailError("");
+            setEmailCode("");
+          }}
+          className="mb-6 flex min-h-11 items-center gap-2 text-sm font-bold text-white/50 transition hover:text-white"
+        >
+          <span className="text-lg">←</span>
+          Back to Profile
+        </button>
+
+        <div className="mb-6">
+          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#59D9FF]">
+            Step 2 of 2
+          </p>
+
+          <h1 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">
+            Verify New Email
+          </h1>
+
+          <p className="mt-2 text-sm leading-6 text-white/45">
+            Enter the 6-digit verification code sent to your new email address.
+          </p>
+        </div>
+
+        <section className="rounded-2xl border border-white/10 bg-[#0d141e] p-5">
+          <div className="rounded-xl border border-white/8 bg-white/[0.025] p-4">
+            <p className="text-[10px] font-black uppercase tracking-wider text-white/35">
+              Code sent to
+            </p>
+
+            <p className="mt-2 truncate text-sm font-bold text-white/75">
+              {emailTarget}
+            </p>
+          </div>
+
+          <label className="mt-5 block text-[10px] font-black uppercase tracking-wider text-white/35">
+            Verification code
+          </label>
+
+          <input
+            value={emailCode}
+            onChange={(event) => {
+              const value = event.target.value
+                .replace(/\D/g, "")
+                .slice(0, 6);
+
+              setEmailCode(value);
+              setEmailError("");
+            }}
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            maxLength={6}
+            autoFocus
+            placeholder="000000"
+            className="mt-3 w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-4 text-center text-2xl font-black tracking-[0.35em] text-white outline-none placeholder:text-white/20 focus:border-[#59D9FF]/40"
+          />
+
+          {emailError && (
+            <p className="mt-3 text-xs font-bold text-red-300">
+              {emailError}
+            </p>
+          )}
+
+          <button
+            type="button"
+            disabled={emailVerifying || emailCode.length !== 6}
+            onClick={async () => {
+              if (emailCode.length !== 6) {
+                setEmailError(
+                  "Enter the 6-digit verification code."
+                );
+                return;
+              }
+
+              setEmailVerifying(true);
+              setEmailError("");
+
+              try {
+                const response = await fetch(
+                  "/api/admin/profile/email/verify-new",
+                  {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                      requestId: emailRequestId,
+                      code: emailCode,
+                    }),
+                  }
+                );
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                  throw new Error(
+                    data?.error ||
+                      "Unable to complete email change."
+                  );
+                }
+
+                setEmailCode("");
+                setEmailRequestId("");
+                setEmailTarget("");
+                setEmailError("");
+
+                setProfile((current) =>
+                  current
+                    ? {
+                        ...current,
+                        email: data.email,
+                      }
+                    : current
+                );
+
+                setScreen("profile");
+
+                window.location.href = "/admin";
+              } catch (err) {
+                setEmailError(
+                  err instanceof Error
+                    ? err.message
+                    : "Unable to complete email change."
+                );
+              } finally {
+                setEmailVerifying(false);
+              }
+            }}
+            className="mt-5 w-full rounded-xl bg-[#59D9FF] px-4 py-3 text-sm font-black text-[#061018] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {emailVerifying
+              ? "Changing email…"
+              : "Verify & Change Email"}
+          </button>
+        </section>
+
+        <section className="mt-4 rounded-2xl border border-[#59D9FF]/10 bg-[#59D9FF]/[0.035] p-4">
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#59D9FF]">
+            Final step
+          </p>
+
+          <p className="mt-2 text-xs leading-5 text-white/40">
+            Your owner email changes only after this code is verified.
+            Your current admin session will then be invalidated and you must sign in again.
+          </p>
+        </section>
+      </main>
+    );
+  }
+
+  if (screen === "email" && profile) {
+    return (
+      <main className="mx-auto w-full max-w-xl px-5 pb-10 sm:px-8">
+        <button
+          type="button"
+          onClick={() => {
+            setScreen("profile");
+            setEmailError("");
+          }}
+          className="mb-6 flex min-h-11 items-center gap-2 text-sm font-bold text-white/50 transition hover:text-white"
+        >
+          <span className="text-lg">←</span>
+          Back to Profile
+        </button>
+
+        <div className="mb-6">
+          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#59D9FF]">
+            Security
+          </p>
+
+          <h1 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">
+            Change Owner Email
+          </h1>
+
+          <p className="mt-2 text-sm leading-6 text-white/45">
+            Your current email must be verified before the new email can be used.
+          </p>
+        </div>
+
+        <section className="rounded-2xl border border-white/10 bg-[#0d141e] p-5">
+          <div className="rounded-xl border border-white/8 bg-white/[0.025] p-4">
+            <p className="text-[10px] font-black uppercase tracking-wider text-white/35">
+              Current email
+            </p>
+
+            <p className="mt-2 truncate text-sm font-bold text-white/75">
+              {profile.email}
+            </p>
+          </div>
+
+          <label className="mt-5 block text-[10px] font-black uppercase tracking-wider text-white/35">
+            New email address
+          </label>
+
+          <input
+            value={newEmail}
+            onChange={(event) => {
+              setNewEmail(event.target.value);
+              setEmailError("");
+            }}
+            type="email"
+            autoComplete="email"
+            autoFocus
+            placeholder="new@email.com"
+            className="mt-3 w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm font-bold text-white outline-none placeholder:text-white/25 focus:border-[#59D9FF]/40"
+          />
+
+          {emailError && (
+            <p className="mt-3 text-xs font-bold text-red-300">
+              {emailError}
+            </p>
+          )}
+
+          <button
+            type="button"
+            disabled={emailSaving}
+            onClick={async () => {
+              const email = newEmail.trim().toLowerCase();
+
+              if (!email || !email.includes("@")) {
+                setEmailError("Enter a valid email address.");
+                return;
+              }
+
+              if (email === profile.email.toLowerCase()) {
+                setEmailError(
+                  "Enter a different email address."
+                );
+                return;
+              }
+
+              setEmailSaving(true);
+              setEmailError("");
+
+              try {
+                const response = await fetch(
+                  "/api/admin/profile/email/request",
+                  {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                      newEmail: email,
+                    }),
+                  }
+                );
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                  throw new Error(
+                    data?.error ||
+                      "Unable to start email change."
+                  );
+                }
+
+                setEmailRequestId(data.requestId);
+                setEmailCode("");
+                setEmailError("");
+                setScreen("email-current");
+                setNewEmail("");
+              } catch (err) {
+                setEmailError(
+                  err instanceof Error
+                    ? err.message
+                    : "Unable to start email change."
+                );
+              } finally {
+                setEmailSaving(false);
+              }
+            }}
+            className="mt-5 w-full rounded-xl bg-[#59D9FF] px-4 py-3 text-sm font-black text-[#061018] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {emailSaving ? "Sending verification…" : "Continue"}
+          </button>
+        </section>
+
+        <section className="mt-4 rounded-2xl border border-[#59D9FF]/10 bg-[#59D9FF]/[0.035] p-4">
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#59D9FF]">
+            Verification required
+          </p>
+
+          <p className="mt-2 text-xs leading-5 text-white/40">
+            A verification code will be sent to your current email first.
+            Nothing changes until the verification process is completed.
+          </p>
+        </section>
+      </main>
+    );
+  }
+
+  if (screen === "name" && profile) {
+    return (
+      <main className="mx-auto w-full max-w-xl px-5 pb-10 sm:px-8">
+        <button
+          type="button"
+          onClick={() => {
+            setScreen("profile");
+            setNameError("");
+          }}
+          className="mb-6 flex min-h-11 items-center gap-2 text-sm font-bold text-white/50 transition hover:text-white"
+        >
+          <span className="text-lg">←</span>
+          Back to Profile
+        </button>
+
+        <div className="mb-6">
+          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#59D9FF]">
+            Account
+          </p>
+
+          <h1 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">
+            Change Display Name
+          </h1>
+
+          <p className="mt-2 text-sm leading-6 text-white/45">
+            Update the name shown on your PABLOT owner profile.
+          </p>
+        </div>
+
+        <section className="rounded-2xl border border-white/10 bg-[#0d141e] p-5">
+          <label className="text-[10px] font-black uppercase tracking-wider text-white/35">
+            Display name
+          </label>
+
+          <input
+            value={displayName}
+            onChange={(event) => {
+              setDisplayName(event.target.value);
+              setNameError("");
+            }}
+            autoFocus
+            maxLength={80}
+            placeholder="PABLOT Owner"
+            className="mt-3 w-full rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm font-bold text-white outline-none placeholder:text-white/25 focus:border-[#59D9FF]/40"
+          />
+
+          <p className="mt-2 text-[11px] text-white/25">
+            2–80 characters
+          </p>
+
+          {nameError && (
+            <p className="mt-3 text-xs font-bold text-red-300">
+              {nameError}
+            </p>
+          )}
+
+          <button
+            type="button"
+            disabled={nameSaving}
+            onClick={async () => {
+              const nextName = displayName.trim();
+
+              if (nextName.length < 2) {
+                setNameError(
+                  "Display name must be at least 2 characters."
+                );
+                return;
+              }
+
+              if (nextName.length > 80) {
+                setNameError(
+                  "Display name must be 80 characters or fewer."
+                );
+                return;
+              }
+
+              if (nextName === profile.displayName) {
+                setNameError(
+                  "Enter a different display name."
+                );
+                return;
+              }
+
+              setNameSaving(true);
+              setNameError("");
+
+              try {
+                const response = await fetch(
+                  "/api/admin/profile/name",
+                  {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                      displayName: nextName,
+                    }),
+                  }
+                );
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                  throw new Error(
+                    data?.error ||
+                      "Unable to update display name."
+                  );
+                }
+
+                setProfile(data.profile);
+                setScreen("profile");
+              } catch (err) {
+                setNameError(
+                  err instanceof Error
+                    ? err.message
+                    : "Unable to update display name."
+                );
+              } finally {
+                setNameSaving(false);
+              }
+            }}
+            className="mt-5 w-full rounded-xl bg-[#59D9FF] px-4 py-3 text-sm font-black text-[#061018] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {nameSaving ? "Saving…" : "Save Display Name"}
+          </button>
+        </section>
+
+        <section className="mt-4 rounded-2xl border border-white/10 bg-[#0d141e] p-4">
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#59D9FF]">
+            Security
+          </p>
+
+          <p className="mt-2 text-xs leading-5 text-white/40">
+            A security notification will be sent to your current owner email after this change.
+          </p>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main className="mx-auto w-full max-w-5xl px-5 pb-10 sm:px-8">
       <div className="mb-6">
@@ -99,13 +692,43 @@ export default function AdminProfilePage() {
               </div>
 
               <div className="min-w-0">
-                <p className="text-lg font-black">
-                  {profile.displayName}
-                </p>
+                <div className="flex items-center gap-1">
+                  <p className="truncate text-lg font-black">
+                    {profile.displayName}
+                  </p>
 
-                <p className="truncate text-sm text-white/45">
-                  {profile.email}
-                </p>
+                  <button
+                    type="button"
+                    aria-label="Edit display name"
+                    onClick={() => {
+                      setDisplayName(profile.displayName);
+                      setNameError("");
+                      setScreen("name");
+                    }}
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm text-white/45 transition hover:bg-white/5 hover:text-[#59D9FF]"
+                  >
+                    ✏️
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-1">
+                  <p className="truncate text-sm text-white/45">
+                    {profile.email}
+                  </p>
+
+                  <button
+                    type="button"
+                    aria-label="Edit owner email"
+                    onClick={() => {
+                      setNewEmail("");
+                      setEmailError("");
+                      setScreen("email");
+                    }}
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sm text-white/45 transition hover:bg-white/5 hover:text-[#59D9FF]"
+                  >
+                    ✏️
+                  </button>
+                </div>
               </div>
             </div>
 
