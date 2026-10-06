@@ -8,8 +8,20 @@ type TaskType =
   | "follow"
   | "visit"
   | "watch"
+  | "watch_ads"
   | "social"
   | "custom";
+
+type WatchProvider = "monetag" | "adsgram" | "adsterra";
+
+type WatchConfig = {
+  provider: WatchProvider;
+  ads_required: number;
+  watch_duration_seconds: number;
+  cooldown_seconds: number;
+  pinned: boolean;
+  pin_order: number | null;
+};
 
 type Task = {
   id: string;
@@ -23,6 +35,7 @@ type Task = {
   created_at: string;
   updated_at: string;
   completion_count: number;
+  watch_config?: WatchConfig | null;
 };
 
 const taskTypes: { value: TaskType; label: string }[] = [
@@ -30,6 +43,7 @@ const taskTypes: { value: TaskType; label: string }[] = [
   { value: "follow", label: "Follow" },
   { value: "visit", label: "Visit" },
   { value: "watch", label: "Watch" },
+  { value: "watch_ads", label: "Watch Ads" },
   { value: "social", label: "Social" },
   { value: "custom", label: "Custom" },
 ];
@@ -41,6 +55,12 @@ const emptyForm = {
   reward_pp: "10",
   target_url: "",
   proof_required: false,
+  watch_provider: "monetag" as WatchProvider,
+  watch_ads_required: "1",
+  watch_duration_seconds: "30",
+  watch_cooldown_seconds: "86400",
+  watch_pinned: false,
+  watch_pin_order: "",
 };
 
 export default function AdminTasksClient() {
@@ -104,6 +124,19 @@ export default function AdminTasksClient() {
       reward_pp: String(task.reward_pp),
       target_url: task.target_url ?? "",
       proof_required: task.proof_required,
+      watch_provider: task.watch_config?.provider ?? "monetag",
+      watch_ads_required: String(task.watch_config?.ads_required ?? 1),
+      watch_duration_seconds: String(
+        task.watch_config?.watch_duration_seconds ?? 30
+      ),
+      watch_cooldown_seconds: String(
+        task.watch_config?.cooldown_seconds ?? 86400
+      ),
+      watch_pinned: task.watch_config?.pinned ?? false,
+      watch_pin_order:
+        task.watch_config?.pin_order != null
+          ? String(task.watch_config.pin_order)
+          : "",
     });
     setMessage("");
     setError("");
@@ -141,6 +174,24 @@ export default function AdminTasksClient() {
         reward_pp: reward,
         target_url: form.target_url || null,
         proof_required: form.proof_required,
+        ...(form.type === "watch_ads"
+          ? {
+              watch_config: {
+                provider: form.watch_provider,
+                ads_required: Number(form.watch_ads_required),
+                watch_duration_seconds: Number(
+                  form.watch_duration_seconds
+                ),
+                cooldown_seconds: Number(
+                  form.watch_cooldown_seconds
+                ),
+                pinned: form.watch_pinned,
+                pin_order: form.watch_pin_order
+                  ? Number(form.watch_pin_order)
+                  : null,
+              },
+            }
+          : {}),
       };
 
       const response = await fetch(
@@ -572,6 +623,187 @@ export default function AdminTasksClient() {
                 />
               </label>
 
+              {form.type === "watch_ads" && (
+                <div className="relative overflow-hidden rounded-2xl border border-[#59D9FF]/15 bg-[#59D9FF]/[0.025] p-3">
+                  <div className="pointer-events-none absolute -right-10 -top-10 h-24 w-24 rounded-full bg-[#59D9FF]/5 blur-2xl" />
+
+                  <div className="relative mb-3 flex items-center gap-2">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-lg border border-[#59D9FF]/15 bg-[#59D9FF]/5 text-xs text-[#59D9FF]">
+                      📺
+                    </span>
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#59D9FF]">
+                        WATCH ADS CONFIG
+                      </p>
+                      <p className="mt-0.5 text-[10px] text-white/25">
+                        Internal provider and cycle controls
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <label className="block">
+                      <span className="mb-2 block text-[10px] font-black uppercase tracking-wider text-white/40">
+                        PROVIDER
+                      </span>
+                      <select
+                        value={form.watch_provider}
+                        onChange={(event) =>
+                          setForm({
+                            ...form,
+                            watch_provider:
+                              event.target.value as WatchProvider,
+                          })
+                        }
+                        className="w-full rounded-xl border border-white/10 bg-[#05090F]/70 px-3 py-3 text-sm text-white outline-none transition focus:border-[#59D9FF]/45 focus:bg-[#070D15]"
+                      >
+                        <option value="monetag">Monetag</option>
+                        <option value="adsgram">Adsgram</option>
+                        <option value="adsterra">Adsterra</option>
+                      </select>
+                    </label>
+
+                    <label className="block">
+                      <span className="mb-2 block text-[10px] font-black uppercase tracking-wider text-white/40">
+                        ADS REQUIRED
+                      </span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={100}
+                        step={1}
+                        value={form.watch_ads_required}
+                        onChange={(event) =>
+                          setForm({
+                            ...form,
+                            watch_ads_required: event.target.value,
+                          })
+                        }
+                        className="w-full rounded-xl border border-white/10 bg-[#05090F]/70 px-3 py-3 text-sm text-white outline-none transition focus:border-[#59D9FF]/45 focus:bg-[#070D15]"
+                      />
+                    </label>
+
+                    <label className="block">
+                      <span className="mb-2 block text-[10px] font-black uppercase tracking-wider text-white/40">
+                        WATCH DURATION
+                      </span>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          min={0}
+                          max={3600}
+                          step={1}
+                          value={form.watch_duration_seconds}
+                          onChange={(event) =>
+                            setForm({
+                              ...form,
+                              watch_duration_seconds:
+                                event.target.value,
+                            })
+                          }
+                          className="w-full rounded-xl border border-white/10 bg-[#05090F]/70 px-3 py-3 pr-16 text-sm text-white outline-none transition focus:border-[#59D9FF]/45 focus:bg-[#070D15]"
+                        />
+                        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-white/25">
+                          seconds
+                        </span>
+                      </div>
+                    </label>
+
+                    <label className="block">
+                      <span className="mb-2 block text-[10px] font-black uppercase tracking-wider text-white/40">
+                        COOLDOWN
+                      </span>
+                      <select
+                        value={form.watch_cooldown_seconds}
+                        onChange={(event) =>
+                          setForm({
+                            ...form,
+                            watch_cooldown_seconds:
+                              event.target.value,
+                          })
+                        }
+                        className="w-full rounded-xl border border-white/10 bg-[#05090F]/70 px-3 py-3 text-sm text-white outline-none transition focus:border-[#59D9FF]/45 focus:bg-[#070D15]"
+                      >
+                        <option value="0">No cooldown</option>
+                        <option value="3600">1 hour</option>
+                        <option value="21600">6 hours</option>
+                        <option value="43200">12 hours</option>
+                        <option value="86400">24 hours</option>
+                        <option value="172800">2 days</option>
+                        <option value="604800">7 days</option>
+                        <option value="2592000">30 days</option>
+                      </select>
+                    </label>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <label className="flex items-center justify-between gap-4 rounded-xl border border-white/10 bg-[#05090F]/60 px-3 py-3 transition has-[:checked]:border-[#59D9FF]/20 has-[:checked]:bg-[#59D9FF]/[0.035]">
+                      <span className="min-w-0">
+                        <span className="block text-sm font-bold text-white/70">
+                          Pin task
+                        </span>
+                        <span className="mt-0.5 block text-[10px] text-white/25">
+                          Keep this task near the top.
+                        </span>
+                      </span>
+
+                      <span className="relative shrink-0">
+                        <input
+                          type="checkbox"
+                          checked={form.watch_pinned}
+                          onChange={(event) =>
+                            setForm({
+                              ...form,
+                              watch_pinned: event.target.checked,
+                            })
+                          }
+                          className="peer sr-only"
+                        />
+                        <span
+                          className={`block h-7 w-12 rounded-full border p-1 transition ${
+                            form.watch_pinned
+                              ? "border-[#59D9FF]/30 bg-[#59D9FF]/15"
+                              : "border-white/10 bg-white/5"
+                          }`}
+                        >
+                          <span
+                            className={`block h-5 w-5 rounded-full transition-transform ${
+                              form.watch_pinned
+                                ? "translate-x-5 bg-[#59D9FF] shadow-[0_0_12px_rgba(89,217,255,.7)]"
+                                : "translate-x-0 bg-white/25"
+                            }`}
+                          />
+                        </span>
+                      </span>
+                    </label>
+
+                    <label className="block">
+                      <span className="mb-2 block text-[10px] font-black uppercase tracking-wider text-white/40">
+                        PIN ORDER
+                      </span>
+                      <select
+                        value={form.watch_pin_order}
+                        disabled={!form.watch_pinned}
+                        onChange={(event) =>
+                          setForm({
+                            ...form,
+                            watch_pin_order: event.target.value,
+                          })
+                        }
+                        className="w-full rounded-xl border border-white/10 bg-[#05090F]/70 px-3 py-3 text-sm text-white outline-none transition disabled:cursor-not-allowed disabled:opacity-30 focus:border-[#59D9FF]/45 focus:bg-[#070D15]"
+                      >
+                        <option value="">Automatic</option>
+                        <option value="1">Position 1</option>
+                        <option value="2">Position 2</option>
+                        <option value="3">Position 3</option>
+                        <option value="4">Position 4</option>
+                        <option value="5">Position 5</option>
+                      </select>
+                    </label>
+                  </div>
+                </div>
+              )}
+
               <label className="flex items-center justify-between gap-4 rounded-xl border border-white/10 bg-[#05090F]/60 px-4 py-3 transition has-[:checked]:border-[#59D9FF]/20 has-[:checked]:bg-[#59D9FF]/[0.035]">
                 <span className="min-w-0">
                   <span className="block text-sm font-bold text-white/75">
@@ -695,9 +927,11 @@ export default function AdminTasksClient() {
                         <span className="flex h-7 w-7 items-center justify-center rounded-lg border border-[#59D9FF]/15 bg-[#59D9FF]/5 text-[10px] font-black text-[#59D9FF]">
                           {task.type === "join_channel"
                             ? "TG"
-                            : task.type === "watch"
-                              ? "▶"
-                              : task.type === "visit"
+                            : task.type === "watch_ads"
+                              ? "📺"
+                              : task.type === "watch"
+                                ? "▶"
+                                : task.type === "visit"
                                 ? "↗"
                                 : "•"}
                         </span>
@@ -730,12 +964,32 @@ export default function AdminTasksClient() {
 
                       <div className="mt-2 flex flex-wrap gap-1.5 text-[10px] font-bold">
                         <span className="rounded-md bg-white/5 px-2 py-1 text-white/50">
-                          {task.type}
+                          {task.type === "watch_ads" ? "watch_ads" : task.type}
                         </span>
 
                         <span className="rounded-lg bg-[#59D9FF]/10 px-2 py-1 text-[#59D9FF]">
                           +{task.reward_pp} PP
                         </span>
+
+                        {task.type === "watch_ads" && task.watch_config && (
+                          <>
+                            <span className="rounded-md bg-[#59D9FF]/5 px-2 py-1 text-[#59D9FF]/70">
+                              {task.watch_config.ads_required} ads
+                            </span>
+                            <span className="rounded-md bg-white/5 px-2 py-1 text-white/40">
+                              {task.watch_config.cooldown_seconds === 0
+                                ? "No cooldown"
+                                : `${Math.round(
+                                    task.watch_config.cooldown_seconds / 3600
+                                  )}h cooldown`}
+                            </span>
+                            {task.watch_config.pinned && (
+                              <span className="rounded-md bg-[#59D9FF]/5 px-2 py-1 text-[#59D9FF]/70">
+                                PIN {task.watch_config.pin_order ?? "AUTO"}
+                              </span>
+                            )}
+                          </>
+                        )}
 
                         <span className="rounded-md bg-white/5 px-2 py-1 text-white/50">
                           {task.completion_count} completed
