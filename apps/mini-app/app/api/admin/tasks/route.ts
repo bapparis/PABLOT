@@ -94,14 +94,14 @@ function isValidWatchConfig(body: any) {
   }
 
   if (
-    body?.pinned !== undefined &&
+    body?.watch_config?.pinned !== undefined &&
     typeof body.pinned !== "boolean"
   ) {
     return "Pinned must be boolean.";
   }
 
   if (
-    body?.pin_order !== undefined &&
+    body?.watch_config?.pin_order !== undefined &&
     body.pin_order !== null &&
     (!Number.isInteger(body.pin_order) ||
       body.pin_order < 1 ||
@@ -360,7 +360,7 @@ export async function POST(request: Request) {
     } | null = null;
 
     if (type === "watch_ads") {
-      const configError = isValidWatchConfig(body);
+      const configError = isValidWatchConfig(body?.watch_config);
 
       if (configError) {
         return NextResponse.json(
@@ -369,12 +369,12 @@ export async function POST(request: Request) {
         );
       }
 
-      const pinned = body?.pinned === true;
+      const pinned = body?.watch_config?.pinned === true;
       let pinOrder =
-        body?.pin_order === null ||
-        body?.pin_order === undefined
+        body?.watch_config?.pin_order === null ||
+        body?.watch_config?.pin_order === undefined
           ? null
-          : Number(body.pin_order);
+          : Number(body.watch_config.pin_order);
 
       if (pinned) {
         const hasCapacity = await ensurePinCapacity(
@@ -399,12 +399,12 @@ export async function POST(request: Request) {
       }
 
       watchConfig = {
-        provider: body.provider,
-        ads_required: Number(body.ads_required),
+        provider: body.watch_config.provider,
+        ads_required: Number(body.watch_config.ads_required),
         watch_duration_seconds: Number(
-          body.watch_duration_seconds
+          body.watch_config.watch_duration_seconds
         ),
-        cooldown_seconds: Number(body.cooldown_seconds),
+        cooldown_seconds: Number(body.watch_config.cooldown_seconds),
         pinned,
         pin_order: pinOrder,
       };
