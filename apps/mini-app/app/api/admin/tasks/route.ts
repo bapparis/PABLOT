@@ -459,7 +459,12 @@ export async function POST(request: Request) {
     console.error("Admin tasks POST error:", error);
 
     return NextResponse.json(
-      { error: "Unable to create task." },
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Unable to create task.",
+      },
       { status: 500 }
     );
   }
