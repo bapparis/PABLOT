@@ -12,6 +12,13 @@ interface Task {
   reward_pp: number;
   target_url: string | null;
   proof_required: boolean;
+  watch_config?: {
+    ads_required: number;
+    watch_duration_seconds: number;
+    cooldown_seconds: number;
+    pinned: boolean;
+    pin_order: number | null;
+  } | null;
 }
 
 const taskIcons: Record<string, string> = {
@@ -21,6 +28,7 @@ const taskIcons: Record<string, string> = {
   watch: "▶️",
   social: "📣",
   custom: "⚡",
+  watch_ads: "📺",
 };
 
 const taskLabels: Record<string, string> = {
@@ -30,6 +38,7 @@ const taskLabels: Record<string, string> = {
   watch: "Video",
   social: "Social",
   custom: "Task",
+  watch_ads: "Watch Ads",
 };
 
 export default function TasksPage() {
@@ -41,6 +50,9 @@ export default function TasksPage() {
     useState<string[]>([]);
   const [startedTaskIds, setStartedTaskIds] =
     useState<string[]>([]);
+  const [watchProgress, setWatchProgress] = useState<
+    Record<string, { adsCompleted: number; adsRequired: number }>
+  >({});
   const [error, setError] = useState("");
 
   const availableTasks = useMemo(
@@ -58,6 +70,220 @@ export default function TasksPage() {
       ),
     [tasks, completedTaskIds]
   );
+
+  async function startWatchTask(task: Task) {
+    if (processingTaskId !== null || completedTaskIds.includes(task.id)) {
+      return;
+    }
+
+    const webApp = initTelegramWebApp();
+    const initData = webApp?.initData;
+
+    if (!initData) {
+      setError("Open PABLOT inside Telegram to watch ads.");
+      return;
+    }
+
+    try {
+      setError("");
+      setProcessingTaskId(task.id);
+
+      const startResponse = await fetch("/api/tasks/watch/start", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          initData,
+          taskId: task.id,
+        }),
+      });
+
+      const startData = await startResponse.json();
+
+      if (!startResponse.ok) {
+        throw new Error(
+          startData?.error || "Unable to start Watch Ads."
+        );
+      }
+
+      const adsRequired = Math.max(
+        1,
+        Number(
+          startData?.ads_required ??
+            task.watch_config?.ads_required ??
+            1
+        )
+      );
+
+      let adsCompleted = Math.max(
+        0,
+        Number(startData?.ads_completed ?? 0)
+      );
+
+      setWatchProgress((current) => ({
+        ...current,
+        [task.id]: {
+          adsCompleted,
+          adsRequired,
+        },
+      }));
+
+      markTaskStarted(task.id);
+
+      for (; adsCompleted < adsRequired; adsCompleted += 1) {
+        const attemptResponse = await fetch(
+          "/api/tasks/watch/attempt",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              initData,
+              taskId: task.id,
+            }),
+          }
+        );
+
+        const attemptData = await attemptResponse.json();
+
+        if (!attemptResponse.ok) {
+          throw new Error(
+            attemptData?.error ||
+              "Unable to prepare the Watch Ads attempt."
+          );
+        }
+
+        const attemptId = attemptData?.attempt_id;
+
+        if (!attemptId) {
+          throw new Error(
+            "Watch Ads attempt could not be prepared."
+          );
+        }
+
+        if (typeof Adsgram === "undefined") {
+          throw new Error(
+            "Ads are not ready yet. Please try again."
+          );
+        }
+
+        const adController = Adsgram.init({
+          blockId: "52334",
+        });
+
+        const result = await adController.show();
+
+        if (!result?.done || result?.error) {
+          throw new Error(
+            "Please complete the rewarded ad to earn PP."
+          );
+        }
+
+        let confirmed = false;
+
+        for (let poll = 0; poll < 20; poll += 1) {
+          await new Promise((resolve) =>
+            setTimeout(resolve, 1500)
+          );
+
+          const rewardResponse = await fetch(
+            `/api/tasks/watch/adsgram/reward?userid=${encodeURIComponent(
+              String(
+                webApp?.initDataUnsafe?.user?.id ?? ""
+              )
+            )}`,
+            {
+              cache: "no-store",
+            }
+          );
+
+          const rewardData = await rewardResponse.json();
+
+          if (rewardResponse.ok && rewardData?.confirmed) {
+            confirmed = true;
+            break;
+          }
+        }
+
+        if (!confirmed) {
+          throw new Error(
+            "Ad completed, but confirmation is still pending. Please try again shortly."
+          );
+        }
+
+        const completeResponse = await fetch(
+          "/api/tasks/watch/complete",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              initData,
+              attemptId,
+            }),
+          }
+        );
+
+        const completeData = await completeResponse.json();
+
+        if (!completeResponse.ok) {
+          throw new Error(
+            completeData?.error ||
+              "Unable to confirm the Watch Ads reward."
+          );
+        }
+
+        const nextAdsCompleted = Math.max(
+          0,
+          Number(
+            completeData?.ads_completed ??
+              adsCompleted + 1
+          )
+        );
+
+        setWatchProgress((current) => ({
+          ...current,
+          [task.id]: {
+            adsCompleted: nextAdsCompleted,
+            adsRequired: Math.max(
+              1,
+              Number(
+                completeData?.ads_required ??
+                  adsRequired
+              )
+            ),
+          },
+        }));
+
+        if (completeData?.status === "completed") {
+          setCompletedTaskIds((current) =>
+            current.includes(task.id)
+              ? current
+              : [...current, task.id]
+          );
+
+          setStartedTaskIds((current) =>
+            current.filter((id) => id !== task.id)
+          );
+
+          setError(`+${Number(completeData?.reward_pp ?? 0)} PP earned!`);
+
+          break;
+        }
+      }
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to complete Watch Ads. Please try again."
+      );
+    } finally {
+      setProcessingTaskId(null);
+    }
+  }
 
   async function loadTasks() {
     try {
@@ -255,6 +481,11 @@ export default function TasksPage() {
 
     setError("");
 
+    if (task.type === "watch_ads") {
+      startWatchTask(task);
+      return;
+    }
+
     if (task.type === "join_channel") {
       const hasStarted = startedTaskIds.includes(
         task.id
@@ -305,6 +536,16 @@ export default function TasksPage() {
       return startedTaskIds.includes(task.id)
         ? "Verify"
         : "Join";
+    }
+
+    if (task.type === "watch_ads") {
+      const progress = watchProgress[task.id];
+
+      if (progress) {
+        return `${progress.adsCompleted}/${progress.adsRequired}`;
+      }
+
+      return "WATCH";
     }
 
     if (task.type === "watch") {
@@ -448,9 +689,20 @@ export default function TasksPage() {
                     {task.description}
                   </p>
 
-                  <p className="mt-0.5 text-[9px] text-white/25">
-                    {taskLabels[task.type] ?? "Task"}
-                  </p>
+                  <div className="mt-0.5 flex items-center gap-2">
+                    <p className="text-[9px] text-white/25">
+                      {taskLabels[task.type] ?? "Task"}
+                    </p>
+
+                    {task.type === "watch_ads" && (
+                      <span className="rounded-full bg-[#b8f34a]/10 px-1.5 py-0.5 text-[8px] font-bold text-[#b8f34a]">
+                        {task.watch_config?.ads_required ?? 1}{" "}
+                        {(task.watch_config?.ads_required ?? 1) === 1
+                          ? "AD"
+                          : "ADS"}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 <button
