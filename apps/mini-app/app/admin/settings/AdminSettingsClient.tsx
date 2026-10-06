@@ -38,6 +38,9 @@ type Settings = {
   networkTonEnabled: boolean;
   networkTrxEnabled: boolean;
   officialChannel: string;
+  paymentsChannelId: string;
+  paymentsChannelUsername: string;
+  paymentsChannelEnabled: boolean;
   defaultLanguage: "en" | "fr";
 };
 
@@ -150,6 +153,9 @@ export default function AdminSettingsClient() {
           network_ton_enabled: draft.networkTonEnabled,
           network_trx_enabled: draft.networkTrxEnabled,
           official_channel: draft.officialChannel,
+          payments_channel_id: draft.paymentsChannelId,
+          payments_channel_username: draft.paymentsChannelUsername,
+          payments_channel_enabled: draft.paymentsChannelEnabled,
           default_language: draft.defaultLanguage,
         }),
       });
@@ -702,6 +708,79 @@ export default function AdminSettingsClient() {
             <p className="mt-2 text-xs text-[#91a8b8]">
               Leave empty until the official channel is ready.
             </p>
+
+            <div className="mt-6 border-t border-[#163044] pt-5">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.16em] text-[#59D9FF]">
+                    Payment proofs
+                  </p>
+                  <h3 className="mt-1 text-base font-black">
+                    Payments channel
+                  </h3>
+                  <p className="mt-1 text-xs text-[#91a8b8]">
+                    Controls automatic pending, paid, and rejected payment posts.
+                  </p>
+                </div>
+
+                <label className="flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border border-[#163044] bg-[#0b1823] px-3">
+                  <span className="text-[11px] font-black uppercase tracking-wider text-[#91a8b8]">
+                    Enabled
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={draft.paymentsChannelEnabled}
+                    onChange={(event) =>
+                      updateDraft(
+                        "paymentsChannelEnabled",
+                        event.target.checked
+                      )
+                    }
+                    className="h-5 w-5 accent-[#59D9FF]"
+                  />
+                </label>
+              </div>
+
+              <label className="mt-4 block">
+                <span className="text-xs font-bold text-[#91a8b8]">
+                  Channel username
+                </span>
+                <input
+                  type="text"
+                  value={draft.paymentsChannelUsername}
+                  onChange={(event) =>
+                    updateDraft(
+                      "paymentsChannelUsername",
+                      event.target.value
+                    )
+                  }
+                  placeholder="@PABLOTPayments"
+                  className="mt-2 min-h-12 w-full rounded-xl border border-[#163044] bg-[#0b1823] px-3 text-sm font-bold text-white outline-none placeholder:text-[#536b7b] focus:border-[#59D9FF]"
+                />
+              </label>
+
+              <label className="mt-4 block">
+                <span className="text-xs font-bold text-[#91a8b8]">
+                  Telegram channel ID
+                </span>
+                <input
+                  type="text"
+                  value={draft.paymentsChannelId}
+                  onChange={(event) =>
+                    updateDraft(
+                      "paymentsChannelId",
+                      event.target.value
+                    )
+                  }
+                  placeholder="-1001234567890"
+                  className="mt-2 min-h-12 w-full rounded-xl border border-[#163044] bg-[#0b1823] px-3 text-sm font-bold text-white outline-none placeholder:text-[#536b7b] focus:border-[#59D9FF]"
+                />
+              </label>
+
+              <p className="mt-2 text-xs leading-5 text-[#91a8b8]">
+                The username is for admin reference. The channel ID is what the bot uses to publish payment proofs.
+              </p>
+            </div>
           </section>
         </div>
       </div>

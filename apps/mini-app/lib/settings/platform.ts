@@ -34,6 +34,9 @@ export type PlatformSettings = {
   networkTonEnabled: boolean;
   networkTrxEnabled: boolean;
   officialChannel: string;
+  paymentsChannelId: string;
+  paymentsChannelUsername: string;
+  paymentsChannelEnabled: boolean;
   defaultLanguage: "en" | "fr";
 };
 
@@ -202,6 +205,18 @@ export async function getPlatformSettings(): Promise<PlatformSettings> {
     officialChannel: readString(
       settings.official_channel,
       ""
+    ),
+    paymentsChannelId: readString(
+      settings.payments_channel_id,
+      ""
+    ),
+    paymentsChannelUsername: readString(
+      settings.payments_channel_username,
+      ""
+    ),
+    paymentsChannelEnabled: readBoolean(
+      settings.payments_channel_enabled,
+      false
     ),
     defaultLanguage,
   };

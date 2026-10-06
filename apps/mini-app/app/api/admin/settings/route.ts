@@ -37,6 +37,9 @@ const ALLOWED_KEYS = new Set([
   "network_ton_enabled",
   "network_trx_enabled",
   "official_channel",
+  "payments_channel_id",
+  "payments_channel_username",
+  "payments_channel_enabled",
   "default_language",
 ]);
 

@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { hasAdminPermission } from "@/lib/admin/authorization";
+import {
+  deletePaymentChannelMessage,
+  sendPaymentChannelMessage,
+} from "@/lib/telegram/payment";
 
 function getAdminSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -16,6 +20,97 @@ function getAdminSupabase() {
       persistSession: false,
     },
   });
+}
+async function publishWithdrawalPaymentUpdate(
+  supabase: ReturnType<typeof getAdminSupabase>,
+  withdrawalId: string,
+  status: "PAID" | "REJECTED",
+  txHash?: string | null
+) {
+  try {
+    const { data: withdrawal, error: withdrawalError } = await supabase
+      .from("withdrawals")
+      .select(
+        "id, net_usd, network, payment_channel_id, payment_channel_message_id, users(username, pablot_id)"
+      )
+      .eq("id", withdrawalId)
+      .maybeSingle();
+
+    if (withdrawalError) {
+      console.error(
+        "Payment channel withdrawal lookup error:",
+        withdrawalError
+      );
+      return;
+    }
+
+    if (!withdrawal) {
+      console.error(
+        "Payment channel withdrawal not found:",
+        withdrawalId
+      );
+      return;
+    }
+
+    const user = Array.isArray(withdrawal.users)
+      ? withdrawal.users[0]
+      : withdrawal.users;
+
+    if (!user?.pablot_id) {
+      console.error(
+        "Payment channel user data is missing:",
+        withdrawalId
+      );
+      return;
+    }
+
+    const paymentMessage = await sendPaymentChannelMessage({
+      telegramUsername: user.username ?? null,
+      pablotId: user.pablot_id,
+      amountUsdt: Number(withdrawal.net_usd ?? 0),
+      network: String(withdrawal.network ?? "BSC").toUpperCase(),
+      status,
+      txHash: txHash ?? null,
+    });
+
+    if (!paymentMessage.messageId) {
+      return;
+    }
+
+    if (withdrawal.payment_channel_message_id) {
+      try {
+        await deletePaymentChannelMessage(
+          Number(withdrawal.payment_channel_message_id),
+          withdrawal.payment_channel_id
+        );
+      } catch (deleteError) {
+        console.error(
+          "Payment channel pending message deletion error:",
+          deleteError
+        );
+      }
+    }
+
+    const { error: saveError } = await supabase
+      .from("withdrawals")
+      .update({
+        payment_channel_id: paymentMessage.channelId,
+        payment_channel_message_id: paymentMessage.messageId,
+      })
+      .eq("id", withdrawalId);
+
+    if (saveError) {
+      console.error(
+        "Payment channel message update error:",
+        saveError
+      );
+    }
+  } catch (paymentError) {
+    console.error(
+      "Payment channel status update error:",
+      paymentError
+    );
+  }
 }
 
 export async function GET(request: NextRequest) {
@@ -57,6 +152,8 @@ export async function GET(request: NextRequest) {
       status,
       tx_hash,
       rejection_reason,
+      payment_channel_id,
+      payment_channel_message_id,
       created_at,
       updated_at,
       users (
@@ -218,6 +315,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    await publishWithdrawalPaymentUpdate(
+      supabase,
+      withdrawalId,
+      "REJECTED"
+    );
+
     return NextResponse.json({
       withdrawal: data,
     });
@@ -265,6 +368,13 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
+
+    await publishWithdrawalPaymentUpdate(
+      supabase,
+      withdrawalId,
+      "PAID",
+      txHash
+    );
 
     return NextResponse.json({
       withdrawal: data,

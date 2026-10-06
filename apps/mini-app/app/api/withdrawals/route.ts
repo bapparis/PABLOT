@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
 import { isMaintenanceEnabled } from "@/lib/settings/maintenance";
+import { sendPaymentChannelMessage } from "@/lib/telegram/payment";
 
 function verifyTelegramInitData(initData: string, botToken: string) {
   const params = new URLSearchParams(initData);
@@ -84,7 +85,7 @@ async function getAuthenticatedUser(initData: string) {
   }
 
   return user
-    ? { supabase, userId: user.id }
+    ? { supabase, userId: user.id, telegramUser }
     : null;
 }
 
@@ -218,6 +219,87 @@ export async function POST(request: NextRequest) {
     const withdrawal = Array.isArray(data)
       ? data[0]
       : data;
+
+    if (withdrawal?.id) {
+      try {
+        const { data: paymentWithdrawal, error: paymentLookupError } =
+          await auth.supabase
+            .from("withdrawals")
+            .select(
+              "id, net_usd, network, status"
+            )
+            .eq("id", withdrawal.id)
+            .eq("user_id", auth.userId)
+            .maybeSingle();
+
+        if (paymentLookupError) {
+          console.error(
+            "Payment channel withdrawal lookup error:",
+            paymentLookupError
+          );
+        } else if (
+          paymentWithdrawal &&
+          paymentWithdrawal.status === "pending"
+        ) {
+          const { data: paymentUser, error: paymentUserError } =
+            await auth.supabase
+              .from("users")
+              .select("username, pablot_id")
+              .eq("id", auth.userId)
+              .maybeSingle();
+
+          if (paymentUserError) {
+            console.error(
+              "Payment channel user lookup error:",
+              paymentUserError
+            );
+          } else if (paymentUser?.pablot_id) {
+            const paymentMessage =
+              await sendPaymentChannelMessage({
+                telegramUsername:
+                  auth.telegramUser.username ?? null,
+                pablotId: paymentUser.pablot_id,
+                amountUsdt: Number(
+                  paymentWithdrawal.net_usd ?? 0
+                ),
+                network: String(
+                  paymentWithdrawal.network ?? "BSC"
+                ).toUpperCase(),
+                status: "PENDING",
+              });
+
+            if (
+              paymentMessage.messageId &&
+              paymentMessage.channelId
+            ) {
+              const { error: paymentSaveError } =
+                await auth.supabase
+                  .from("withdrawals")
+                  .update({
+                    payment_channel_id:
+                      paymentMessage.channelId,
+                    payment_channel_message_id:
+                      paymentMessage.messageId,
+                  })
+                  .eq("id", paymentWithdrawal.id)
+                  .eq("user_id", auth.userId);
+
+              if (paymentSaveError) {
+                console.error(
+                  "Payment channel message save error:",
+                  paymentSaveError
+                );
+              }
+            }
+          }
+        }
+      } catch (paymentError) {
+        console.error(
+          "Payment channel notification error:",
+          paymentError
+        );
+      }
+    }
 
     return NextResponse.json({
       withdrawal,
