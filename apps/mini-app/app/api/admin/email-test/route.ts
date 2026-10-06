@@ -49,7 +49,13 @@ export async function GET() {
     console.error("Admin email test error:", error);
 
     return NextResponse.json(
-      { error: "Unable to send security test email." },
+      {
+        error: "Unable to send security test email.",
+        detail:
+          error instanceof Error
+            ? error.message
+            : "Unknown email delivery error.",
+      },
       { status: 500 }
     );
   }
