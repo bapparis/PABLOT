@@ -458,12 +458,18 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("Admin tasks POST error:", error);
 
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : typeof error === "string"
+          ? error
+          : JSON.stringify(error);
+
+    console.error("Admin task creation error:", error);
+
     return NextResponse.json(
       {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Unable to create task.",
+        error: errorMessage || "Unable to create task.",
       },
       { status: 500 }
     );
