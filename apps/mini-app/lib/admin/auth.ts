@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { cookies } from "next/headers";
+import { getOwnerAccount } from "@/lib/admin/owner";
 
 const COOKIE_NAME = "pablot_admin_session";
 
@@ -41,17 +42,27 @@ export async function isAdminAuthenticated() {
     return false;
   }
 
-  const prefix = "pablot-admin:owner:";
+  const parts = payload.split(":");
 
-  if (!payload.startsWith(prefix)) {
+  if (
+    parts.length !== 4 ||
+    parts[0] !== "pablot-admin" ||
+    parts[1] !== "owner"
+  ) {
     return false;
   }
 
-  const timestamp = Number(
-    payload.slice(prefix.length)
-  );
+  const timestamp = Number(parts[2]);
+  const sessionVersion = Number(parts[3]);
 
-  if (!Number.isFinite(timestamp)) {
+  if (
+    !Number.isFinite(timestamp) ||
+    !Number.isInteger(sessionVersion)
+  ) {
+    return false;
+  }
+
+  if (timestamp > Date.now() + 60 * 1000) {
     return false;
   }
 
@@ -61,7 +72,13 @@ export async function isAdminAuthenticated() {
     return false;
   }
 
-  if (timestamp > Date.now() + 60 * 1000) {
+  const owner = await getOwnerAccount();
+
+  if (!owner) {
+    return false;
+  }
+
+  if (Number(owner.auth_version ?? 1) !== sessionVersion) {
     return false;
   }
 

@@ -5,6 +5,7 @@ import { FormEvent, useState } from "react";
 export default function StaffLoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -88,15 +89,32 @@ export default function StaffLoginPage() {
               >
                 Password
               </label>
-              <input
-                id="password"
-                type="password"
-                autoComplete="current-password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                className="w-full rounded-2xl border border-white/10 bg-[#061018] px-4 py-3 text-white outline-none focus:border-[#59D9FF]"
-                placeholder="Your staff password"
-              />
+              <div className="relative">
+                <input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  className="w-full rounded-2xl border border-white/10 bg-[#061018] px-4 py-3 pr-12 text-white outline-none focus:border-[#59D9FF]"
+                  placeholder="Your staff password"
+                />
+
+                <button
+                  type="button"
+                  aria-label={
+                    showPassword
+                      ? "Hide staff password"
+                      : "Show staff password"
+                  }
+                  onClick={() =>
+                    setShowPassword((value) => !value)
+                  }
+                  className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-xl text-base text-white/45 transition hover:bg-white/5 hover:text-white"
+                >
+                  {showPassword ? "🙈" : "👁️"}
+                </button>
+              </div>
             </div>
 
             {error && (

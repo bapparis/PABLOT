@@ -51,6 +51,12 @@ const navigation = [
     icon: "⚙",
     permission: "manage_settings",
   },
+  {
+    href: "/admin/profile",
+    label: "Profile",
+    icon: "●",
+    ownerOnly: true,
+  },
 ];
 
 export default function AdminShell({
