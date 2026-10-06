@@ -3,6 +3,9 @@ import { isOwner } from "@/lib/admin/authorization";
 import { getOwnerAccount } from "@/lib/admin/owner";
 import { sendPablotSecurityEmail } from "@/lib/email/resend";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function GET() {
   try {
     if (!(await isOwner())) {
