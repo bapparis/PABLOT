@@ -227,7 +227,7 @@ export async function POST(request: NextRequest) {
       }
 
       if (
-        message.includes("TASK_COOLDOWN")
+        message.includes("WATCH_TASK_COOLDOWN")
       ) {
         return NextResponse.json(
           {
@@ -239,7 +239,7 @@ export async function POST(request: NextRequest) {
       }
 
       if (
-        message.includes("TASK_IN_PROGRESS")
+        message.includes("WATCH_TASK_ALREADY_IN_PROGRESS")
       ) {
         return NextResponse.json(
           {
@@ -251,7 +251,7 @@ export async function POST(request: NextRequest) {
       }
 
       if (
-        message.includes("TASK_CONFIG_NOT_FOUND")
+        message.includes("WATCH_TASK_NOT_CONFIGURED")
       ) {
         return NextResponse.json(
           {
@@ -282,6 +282,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       cycle_id: result.cycle_id,
+      provider: result.provider,
       ads_required: Number(result.ads_required ?? 1),
       ads_completed: Number(result.ads_completed ?? 0),
       watch_duration_seconds: Number(

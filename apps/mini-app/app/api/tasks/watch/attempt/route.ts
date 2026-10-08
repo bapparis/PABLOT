@@ -229,7 +229,7 @@ export async function POST(request: NextRequest) {
       const message = error.message;
 
       if (
-        message.includes("TASK_CONFIG_NOT_FOUND")
+        message.includes("WATCH_TASK_NOT_CONFIGURED")
       ) {
         return NextResponse.json(
           {
@@ -241,7 +241,7 @@ export async function POST(request: NextRequest) {
       }
 
       if (
-        message.includes("TASK_NOT_IN_PROGRESS")
+        message.includes("WATCH_TASK_NOT_IN_PROGRESS")
       ) {
         return NextResponse.json(
           {
@@ -253,7 +253,7 @@ export async function POST(request: NextRequest) {
       }
 
       if (
-        message.includes("ATTEMPT_ALREADY_PENDING")
+        message.includes("WATCH_TASK_ATTEMPT_ALREADY_PENDING")
       ) {
         return NextResponse.json(
           {
@@ -284,6 +284,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       attempt_id: result.attempt_id,
+      provider: result.provider,
+      ymid: result.ymid ?? null,
+      provider_attempt_id:
+        result.provider_attempt_id ?? null,
       expires_at: result.expires_at,
       status: result.status,
     });

@@ -1,6 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+
+declare global {
+  interface Window {
+    show_11934399?: (options?: {
+      ymid?: string;
+      requestVar?: string;
+    }) => Promise<unknown>;
+  }
+}
+
 import BottomNav from "@/components/BottomNav";
 import { initTelegramWebApp } from "@/lib/telegram";
 
@@ -52,6 +62,10 @@ export default function TasksPage() {
   const [loading, setLoading] = useState(true);
   const [processingTaskId, setProcessingTaskId] =
     useState<string | null>(null);
+  const [processingWatchTaskIds, setProcessingWatchTaskIds] =
+    useState<string[]>([]);
+  const processingWatchTaskIdsRef =
+    useRef<Set<string>>(new Set());
   const [completedTaskIds, setCompletedTaskIds] =
     useState<string[]>([]);
   const [startedTaskIds, setStartedTaskIds] =
@@ -90,38 +104,74 @@ export default function TasksPage() {
   );
 
   async function startWatchTask(task: Task) {
-    if (processingTaskId !== null || completedTaskIds.includes(task.id)) {
+    if (
+      completedTaskIds.includes(task.id) ||
+      processingWatchTaskIdsRef.current.has(task.id)
+    ) {
       return;
     }
+
+    processingWatchTaskIdsRef.current.add(task.id);
+    setProcessingWatchTaskIds((current) =>
+      current.includes(task.id)
+        ? current
+        : [...current, task.id]
+    );
 
     const webApp = initTelegramWebApp();
     const initData = webApp?.initData;
 
     if (!initData) {
+      processingWatchTaskIdsRef.current.delete(task.id);
+      setProcessingWatchTaskIds((current) =>
+        current.filter((id) => id !== task.id)
+      );
       setError("Open PABLOT inside Telegram to watch ads.");
       return;
     }
 
     try {
       setError("");
-      setProcessingTaskId(task.id);
 
-      const startResponse = await fetch("/api/tasks/watch/start", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          initData,
-          taskId: task.id,
-        }),
-      });
+      const startResponse = await fetch(
+        "/api/tasks/watch/start",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            initData,
+            taskId: task.id,
+          }),
+        }
+      );
 
       const startData = await startResponse.json();
 
       if (!startResponse.ok) {
         throw new Error(
           startData?.error || "Unable to start Watch Ads."
+        );
+      }
+
+      const provider = String(
+        startData?.provider ?? ""
+      ).toLowerCase();
+
+      if (
+        provider !== "adsgram" &&
+        provider !== "monetag" &&
+        provider !== "adsterra"
+      ) {
+        throw new Error(
+          "This Watch Ads provider is not supported yet."
+        );
+      }
+
+      if (provider === "adsterra") {
+        throw new Error(
+          "Adsterra Watch Ads is not available yet."
         );
       }
 
@@ -150,6 +200,17 @@ export default function TasksPage() {
       markTaskStarted(task.id);
 
       for (; adsCompleted < adsRequired; adsCompleted += 1) {
+        let ymid: string | null = null;
+
+        if (provider === "monetag") {
+          const telegramId =
+            webApp?.initDataUnsafe?.user?.id;
+
+          ymid = telegramId
+            ? `pablot_watch_${telegramId}_${Date.now()}_${crypto.randomUUID()}`
+            : `pablot_watch_${Date.now()}_${crypto.randomUUID()}`;
+        }
+
         const attemptResponse = await fetch(
           "/api/tasks/watch/attempt",
           {
@@ -160,6 +221,7 @@ export default function TasksPage() {
             body: JSON.stringify({
               initData,
               taskId: task.id,
+              ymid,
             }),
           }
         );
@@ -181,54 +243,142 @@ export default function TasksPage() {
           );
         }
 
-        if (typeof Adsgram === "undefined") {
+        const attemptProvider = String(
+          attemptData?.provider ?? provider
+        ).toLowerCase();
+
+        if (attemptProvider !== provider) {
           throw new Error(
-            "Ads are not ready yet. Please try again."
+            "Watch Ads provider changed unexpectedly. Please try again."
           );
         }
 
-        const adController = Adsgram.init({
-          blockId: "51135",
-        });
+        if (provider === "adsgram") {
+          if (typeof Adsgram === "undefined") {
+            throw new Error(
+              "Ads are not ready yet. Please try again."
+            );
+          }
 
-        const result = await adController.show();
+          const adController = Adsgram.init({
+            blockId: "51135",
+          });
 
-        if (!result?.done || result?.error) {
-          throw new Error(
-            "Please complete the rewarded ad to earn PP."
-          );
-        }
+          const result = await adController.show();
 
-        let confirmed = false;
+          if (!result?.done || result?.error) {
+            throw new Error(
+              "Please complete the rewarded ad to earn PP."
+            );
+          }
 
-        for (let poll = 0; poll < 20; poll += 1) {
-          await new Promise((resolve) =>
-            setTimeout(resolve, 1500)
-          );
+          let confirmed = false;
 
-          const rewardResponse = await fetch(
-            `/api/tasks/watch/adsgram/reward?userid=${encodeURIComponent(
-              String(
-                webApp?.initDataUnsafe?.user?.id ?? ""
-              )
-            )}`,
-            {
-              cache: "no-store",
+          for (let poll = 0; poll < 20; poll += 1) {
+            await new Promise((resolve) =>
+              setTimeout(resolve, 1500)
+            );
+
+            const telegramId =
+              webApp?.initDataUnsafe?.user?.id;
+
+            if (!telegramId) {
+              continue;
             }
-          );
 
-          const rewardData = await rewardResponse.json();
+            const rewardResponse = await fetch(
+              `/api/tasks/watch/adsgram/reward?userid=${encodeURIComponent(
+                String(telegramId)
+              )}`,
+              {
+                cache: "no-store",
+              }
+            );
 
-          if (rewardResponse.ok && rewardData?.confirmed) {
-            confirmed = true;
-            break;
+            const rewardData =
+              await rewardResponse.json();
+
+            if (
+              rewardResponse.ok &&
+              rewardData?.confirmed
+            ) {
+              confirmed = true;
+              break;
+            }
+          }
+
+          if (!confirmed) {
+            throw new Error(
+              "Ad completed, but confirmation is still pending. Please try again shortly."
+            );
           }
         }
 
-        if (!confirmed) {
-          throw new Error(
-            "Ad completed, but confirmation is still pending. Please try again shortly."
-          );
+        if (provider === "monetag") {
+          if (!ymid) {
+            throw new Error(
+              "Monetag Watch Ads ID could not be created."
+            );
+          }
+
+          if (
+            typeof window.show_11934399 !==
+            "function"
+          ) {
+            throw new Error(
+              "Monetag ads are not ready yet. Please try again."
+            );
+          }
+
+          await window.show_11934399({
+            ymid,
+            requestVar: "watch_ads",
+          });
+
+          let confirmed = false;
+
+          for (let poll = 0; poll < 20; poll += 1) {
+            const confirmationResponse =
+              await fetch(
+                `/api/tasks/watch/monetag/reward?initData=${encodeURIComponent(
+                  initData
+                )}&ymid=${encodeURIComponent(ymid)}`,
+                {
+                  cache: "no-store",
+                }
+              );
+
+            const confirmationData =
+              await confirmationResponse.json();
+
+            if (
+              confirmationResponse.ok &&
+              confirmationData?.confirmed
+            ) {
+              confirmed = true;
+              break;
+            }
+
+            if (
+              confirmationResponse.status !== 202 &&
+              confirmationResponse.status !== 404
+            ) {
+              throw new Error(
+                confirmationData?.error ||
+                  "Unable to confirm the Monetag reward."
+              );
+            }
+
+            await new Promise((resolve) =>
+              setTimeout(resolve, 1500)
+            );
+          }
+
+          if (!confirmed) {
+            throw new Error(
+              "Ad completed, but Monetag confirmation is still pending. Please try again shortly."
+            );
+          }
         }
 
         const completeResponse = await fetch(
@@ -245,7 +395,8 @@ export default function TasksPage() {
           }
         );
 
-        const completeData = await completeResponse.json();
+        const completeData =
+          await completeResponse.json();
 
         if (!completeResponse.ok) {
           throw new Error(
@@ -276,7 +427,9 @@ export default function TasksPage() {
           },
         }));
 
-        if (completeData?.status === "completed") {
+        if (
+          completeData?.status === "completed"
+        ) {
           setCompletedTaskIds((current) =>
             current.includes(task.id)
               ? current
@@ -287,7 +440,11 @@ export default function TasksPage() {
             current.filter((id) => id !== task.id)
           );
 
-          setError(`+${Number(completeData?.reward_pp ?? 0)} PP earned!`);
+          setError(
+            `+${Number(
+              completeData?.reward_pp ?? 0
+            )} PP earned!`
+          );
 
           break;
         }
@@ -299,7 +456,12 @@ export default function TasksPage() {
           : "Unable to complete Watch Ads. Please try again."
       );
     } finally {
-      setProcessingTaskId(null);
+      processingWatchTaskIdsRef.current.delete(
+        task.id
+      );
+      setProcessingWatchTaskIds((current) =>
+        current.filter((id) => id !== task.id)
+      );
     }
   }
 
@@ -515,10 +677,7 @@ export default function TasksPage() {
   }
 
   function handleTask(task: Task) {
-    if (
-      processingTaskId ||
-      completedTaskIds.includes(task.id)
-    ) {
+    if (completedTaskIds.includes(task.id)) {
       return;
     }
 
@@ -526,6 +685,10 @@ export default function TasksPage() {
 
     if (task.type === "watch_ads") {
       startWatchTask(task);
+      return;
+    }
+
+    if (processingTaskId) {
       return;
     }
 
@@ -608,7 +771,17 @@ export default function TasksPage() {
       return "✓";
     }
 
-    if (processingTaskId === task.id) {
+    if (
+      task.type === "watch_ads" &&
+      processingWatchTaskIds.includes(task.id)
+    ) {
+      return "...";
+    }
+
+    if (
+      task.type !== "watch_ads" &&
+      processingTaskId === task.id
+    ) {
       return "...";
     }
 
@@ -797,13 +970,14 @@ export default function TasksPage() {
                   type="button"
                   onClick={() => handleTask(task)}
                   disabled={
-                    processingTaskId !== null ||
-                    Boolean(
-                      task.type === "watch_ads" &&
-                        formatCooldown(
-                          watchCycles[task.id]?.available_at ?? null
+                    task.type === "watch_ads"
+                      ? processingWatchTaskIds.includes(task.id) ||
+                        Boolean(
+                          formatCooldown(
+                            watchCycles[task.id]?.available_at ?? null
+                          )
                         )
-                    )
+                      : processingTaskId !== null
                   }
                   className={`shrink-0 rounded-lg px-2.5 py-1.5 text-[10px] font-bold transition disabled:cursor-not-allowed disabled:opacity-50 ${
                     task.type === "watch_ads" &&
