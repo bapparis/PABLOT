@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import HomeBannerManager from "@/components/admin/HomeBannerManager";
 
 type Settings = {
   maintenanceMode: boolean;
@@ -251,6 +252,8 @@ export default function AdminSettingsClient() {
             </div>
           )}
         </div>
+
+        <HomeBannerManager />
 
         <div className="grid gap-4 lg:grid-cols-2">
           <section className="rounded-3xl border border-[#163044] bg-[#08131d] p-5 lg:col-span-2">

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import BottomNav from "@/components/BottomNav";
+import type { HomeBanner } from "@/lib/home-banners";
 
 export default function Home() {
   const adController = useRef<AdsgramAdController | null>(null);
@@ -37,6 +38,39 @@ export default function Home() {
   >([]);
   const [tasksLoading, setTasksLoading] = useState(true);
   const [completedTaskIds, setCompletedTaskIds] = useState<string[]>([]);
+  const [homeBanners, setHomeBanners] = useState<HomeBanner[]>([]);
+  const [activeBannerIndex, setActiveBannerIndex] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+
+    fetch("/api/platform/banners")
+      .then(async (response) => response.ok ? response.json() : null)
+      .then((data) => {
+        if (active && Array.isArray(data?.banners)) {
+          setHomeBanners(data.banners);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (homeBanners.length < 2) {
+      setActiveBannerIndex(0);
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      setActiveBannerIndex((index) => (index + 1) % homeBanners.length);
+    }, 5000);
+
+    return () => window.clearInterval(timer);
+  }, [homeBanners.length]);
+
 
   useEffect(() => {
     const initializeTelegramUser = async () => {
@@ -627,27 +661,27 @@ export default function Home() {
         </section>
 
         {/* Daily Check */}
-        <section className="glass-panel mt-3 rounded-[18px] p-3">
+        <section className="glass-panel mt-2 rounded-[16px] px-3 py-2">
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-[9px] font-black uppercase tracking-[0.16em] text-emerald-300">
                 DAILY CHECK-IN
               </p>
-              <p className="mt-1 text-sm font-black">
+              <p className="mt-0.5 text-xs font-black">
                 Day {Math.min(streakDay, 7)} streak
               </p>
             </div>
 
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-400/10 text-sm">
+            <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-emerald-400/10 text-xs">
               🔥
             </div>
           </div>
 
-          <div className="mt-3 flex items-center justify-center gap-2">
+          <div className="mt-2 flex items-center justify-center gap-1.5">
             {[1, 2, 3].map((ad) => (
               <div
                 key={ad}
-                className={`h-1.5 w-10 rounded-full transition-all duration-300 ${
+                className={`h-1 w-8 rounded-full transition-all duration-300 ${
                   ad <= dailyAdsCompleted
                     ? "bg-emerald-400"
                     : "bg-white/10"
@@ -656,13 +690,13 @@ export default function Home() {
             ))}
           </div>
 
-          <p className="mt-1.5 text-center text-[9px] font-semibold text-white/35">
+          <p className="mt-1 text-center text-[9px] font-semibold text-white/35">
             {checkedInToday
               ? "3/3 ads completed"
               : "Watch 3 rewarded ads to check in"}
           </p>
 
-          <div className="mt-2 flex justify-center">
+          <div className="mt-1.5 flex justify-center">
             <button
               type="button"
               onClick={handleDailyCheckIn}
@@ -693,11 +727,76 @@ export default function Home() {
           )}
 
           {adMessage && (
-            <p className="mt-2 text-center text-[10px] font-semibold text-white/40">
+            <p className="mt-1 text-center text-[10px] font-semibold text-white/40">
               {adMessage}
             </p>
           )}
         </section>
+
+        {homeBanners.length > 0 && (
+          <section className="mt-2" aria-label="PABLOT promotions">
+            <div className="relative h-[104px] overflow-hidden rounded-2xl border border-white/10 bg-[#0b1820]">
+              {homeBanners.map((banner, index) =>
+                index === activeBannerIndex % homeBanners.length ? (
+                  <div key={banner.id} className="absolute inset-0">
+                    {banner.imageUrl && (
+                      <img
+                        src={banner.imageUrl}
+                        alt=""
+                        className="absolute inset-0 h-full w-full object-cover opacity-35"
+                      />
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-r from-[#071018] via-[#071018]/85 to-transparent" />
+                    <div className="relative flex h-full items-center justify-between gap-2 px-3 py-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[8px] font-black uppercase tracking-[0.16em] text-emerald-300">
+                          FEATURED
+                        </p>
+                        <h3 className="truncate text-sm font-black text-white">
+                          {banner.title}
+                        </h3>
+                        {banner.description && (
+                          <p className="mt-0.5 line-clamp-2 text-[10px] leading-4 text-white/65">
+                            {banner.description}
+                          </p>
+                        )}
+                      </div>
+                      {banner.buttonText && banner.destinationUrl && (
+                        <a
+                          href={banner.destinationUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="shrink-0 rounded-lg bg-emerald-400 px-2.5 py-2 text-[9px] font-black text-[#04110b]"
+                        >
+                          {banner.buttonText}
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                ) : null
+              )}
+            </div>
+
+            {homeBanners.length > 1 && (
+              <div className="mt-1 flex justify-center gap-1.5">
+                {homeBanners.map((banner, index) => (
+                  <button
+                    key={banner.id}
+                    type="button"
+                    aria-label={`Show banner ${index + 1}`}
+                    aria-current={index === activeBannerIndex % homeBanners.length}
+                    onClick={() => setActiveBannerIndex(index)}
+                    className={`h-1.5 rounded-full transition-all ${
+                      index === activeBannerIndex % homeBanners.length
+                        ? "w-5 bg-emerald-400"
+                        : "w-1.5 bg-white/25"
+                    }`}
+                  />
+                ))}
+              </div>
+            )}
+          </section>
+        )}
 
         {/* Daily progress */}
         {(() => {
