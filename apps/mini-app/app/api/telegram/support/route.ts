@@ -114,7 +114,7 @@ export async function POST(request: Request) {
       if (!isAdmin) {
         await sendMessage(token, chatId, "❌ This command is only available to PABLOT Support administrators.");
       } else {
-        const parts = text.trim().split(/\\s+/);
+        const parts = text.trim().split(/\s+/);
         const ticketRef = parts[1]?.toUpperCase();
         const replyText = parts.slice(2).join(" ").trim();
 
@@ -196,7 +196,7 @@ Powered by BAGLOT`
       if (!isAdmin) {
         await sendMessage(token, chatId, "❌ This command is only available to PABLOT Support administrators.");
       } else {
-        const parts = text.trim().split(/\\s+/);
+        const parts = text.trim().split(/\s+/);
         const ticketRef = parts[1]?.toUpperCase();
 
         if (!ticketRef || !/^PB-\\d+$/.test(ticketRef)) {
