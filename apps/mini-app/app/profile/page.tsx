@@ -59,7 +59,12 @@ export default function ProfilePage() {
 
   function openSupport() {
     if (!supportUrl) return;
-    window.open(supportUrl, "_blank", "noopener,noreferrer");
+
+    const url = /^https?:\/\//i.test(supportUrl)
+      ? supportUrl
+      : `https://${supportUrl}`;
+
+    window.open(url, "_blank", "noopener,noreferrer");
   }
 
   return (
