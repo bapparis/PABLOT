@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-const WEB_APP_URL = "https://pablot.vercel.app/";
+const WEB_APP_URL = "https://t.me/PABLOTX_bot";
 
 async function sendMessage(
   token: string,
