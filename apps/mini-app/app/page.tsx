@@ -566,18 +566,24 @@ export default function Home() {
     <main className="min-h-screen px-4 pb-28 pt-5">
       <div className="mx-auto w-full max-w-md">
 
-        {/* Header */}
-        <header className="mb-5 flex items-center justify-between">
-          <div>
-            <p className="text-xs font-medium text-white/45">WELCOME TO</p>
-            <h1 className="mt-1 text-2xl font-black tracking-tight">
+        {/* Premium PABLOT Identity */}
+        <header className="mb-5 flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="flex items-center gap-2 text-[9px] font-extrabold uppercase tracking-[0.32em] text-emerald-200/75">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_8px_rgba(110,231,183,0.8)]" />
+              WELCOME TO
+            </p>
+
+            <h1 className="mt-1 bg-gradient-to-r from-emerald-300 via-cyan-300 to-violet-300 bg-clip-text text-3xl font-black leading-none tracking-[0.12em] text-transparent drop-shadow-[0_0_14px_rgba(52,211,153,0.22)]">
               PABLOT
             </h1>
+
+            <div className="mt-2 h-[2px] w-16 rounded-full bg-gradient-to-r from-emerald-300 via-cyan-300 to-transparent" />
           </div>
 
           <a
             href="/profile"
-            className="glass-panel flex h-11 w-11 items-center justify-center rounded-full text-lg"
+            className="glass-panel flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-emerald-300/15 text-lg transition duration-200 hover:border-emerald-300/40 hover:bg-emerald-300/10 active:scale-95"
             aria-label="Profile"
           >
             👤
