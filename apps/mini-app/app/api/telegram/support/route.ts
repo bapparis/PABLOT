@@ -118,7 +118,7 @@ export async function POST(request: Request) {
         const ticketRef = parts[1]?.toUpperCase();
         const replyText = parts.slice(2).join(" ").trim();
 
-        if (!ticketRef || !/^PB-\\d+$/.test(ticketRef) || !replyText) {
+        if (!ticketRef || !/^PB-\d+$/.test(ticketRef) || !replyText) {
           await sendMessage(
             token,
             chatId,
@@ -199,7 +199,7 @@ Powered by BAGLOT`
         const parts = text.trim().split(/\s+/);
         const ticketRef = parts[1]?.toUpperCase();
 
-        if (!ticketRef || !/^PB-\\d+$/.test(ticketRef)) {
+        if (!ticketRef || !/^PB-\d+$/.test(ticketRef)) {
           await sendMessage(
             token,
             chatId,
