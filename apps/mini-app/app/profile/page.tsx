@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 interface ProfileUser {
   pp_balance: number;
   total_earned: number;
+  language: "en" | "fr" | "ar" | "hi";
 }
 import TelegramProfile from "./TelegramProfile";
 import BottomNav from "@/components/BottomNav";
@@ -41,6 +42,8 @@ export default function ProfilePage() {
   const [supportEnabled, setSupportEnabled] = useState(false);
   const [supportUrl, setSupportUrl] = useState("");
   const [user, setUser] = useState<ProfileUser | null>(null);
+  const [languageOpen, setLanguageOpen] = useState(false);
+  const [languageSaving, setLanguageSaving] = useState(false);
 
   useEffect(() => {
     fetch("/api/platform/support")
@@ -65,6 +68,56 @@ export default function ProfilePage() {
       : `https://${supportUrl}`;
 
     window.open(url, "_blank", "noopener,noreferrer");
+  }
+
+  const languages = [
+    { code: "en", label: "English", flag: "🇬🇧" },
+    { code: "fr", label: "Français", flag: "🇫🇷" },
+    { code: "ar", label: "العربية", flag: "🇸🇦" },
+    { code: "hi", label: "हिन्दी", flag: "🇮🇳" },
+  ] as const;
+
+  const currentLanguage =
+    languages.find((item) => item.code === user?.language) ?? languages[0];
+
+  async function changeLanguage(language: ProfileUser["language"]) {
+    if (!user || languageSaving) return;
+
+    setLanguageSaving(true);
+
+    try {
+      const webApp = (await import("@/lib/telegram")).initTelegramWebApp();
+
+      if (!webApp?.initData) {
+        throw new Error("Open PABLOT from Telegram.");
+      }
+
+      const response = await fetch("/api/telegram/preferences", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          initData: webApp.initData,
+          language,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data?.error || "Unable to update language.");
+      }
+
+      setUser((current) =>
+        current ? { ...current, language: data.language } : current
+      );
+      setLanguageOpen(false);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLanguageSaving(false);
+    }
   }
 
   return (
@@ -167,6 +220,7 @@ export default function ProfilePage() {
 
           <button
             type="button"
+            onClick={() => setLanguageOpen(true)}
             className="flex w-full items-center gap-4 px-5 py-4 text-left transition active:bg-white/5"
           >
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 text-lg">
@@ -179,7 +233,7 @@ export default function ProfilePage() {
               </span>
 
               <span className="mt-1 block text-xs text-white/35">
-                English
+                {currentLanguage.flag} {currentLanguage.label}
               </span>
             </span>
 
@@ -188,28 +242,28 @@ export default function ProfilePage() {
             </span>
           </button>
 
-          <button
-            type="button"
+          <Link
+            href="/security"
             className="flex w-full items-center gap-4 border-t border-white/6 px-5 py-4 text-left transition active:bg-white/5"
           >
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 text-lg">
-              🔔
+              🛡️
             </span>
 
             <span className="flex-1">
               <span className="block text-sm font-bold">
-                Notifications
+                Security & Privacy
               </span>
 
               <span className="mt-1 block text-xs text-white/35">
-                Manage your notifications
+                Manage your account and privacy
               </span>
             </span>
 
             <span className="text-lg text-white/20">
               ›
             </span>
-          </button>
+          </Link>
 
           {supportEnabled && (
             <button
@@ -272,6 +326,59 @@ export default function ProfilePage() {
           <span>•</span>
           <button type="button">Privacy</button>
         </section>
+
+        {languageOpen && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-4">
+            <div className="glass-panel w-full max-w-md rounded-[28px] p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-black">Language</h2>
+                  <p className="mt-1 text-xs text-white/35">
+                    Choose your preferred language
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setLanguageOpen(false)}
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-white/5 text-xl text-white/60"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="mt-5 space-y-2">
+                {languages.map((language) => (
+                  <button
+                    key={language.code}
+                    type="button"
+                    disabled={languageSaving}
+                    onClick={() => changeLanguage(language.code)}
+                    className={`flex w-full items-center gap-4 rounded-2xl px-4 py-4 text-left transition ${
+                      currentLanguage.code === language.code
+                        ? "bg-emerald-400/10 ring-1 ring-emerald-400/30"
+                        : "bg-white/5 active:bg-white/10"
+                    }`}
+                  >
+                    <span className="text-2xl">{language.flag}</span>
+
+                    <span className="flex-1">
+                      <span className="block text-sm font-bold">
+                        {language.label}
+                      </span>
+                    </span>
+
+                    {currentLanguage.code === language.code && (
+                      <span className="text-sm font-black text-emerald-300">
+                        ✓
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         <footer className="pb-4 text-center">
           <p className="text-xs font-black tracking-[0.2em] text-white/30">
