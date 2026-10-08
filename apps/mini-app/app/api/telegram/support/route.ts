@@ -84,7 +84,9 @@ export async function POST(request: Request) {
 
     const user = await getUser(telegramId);
 
-    if (command === "/start") {
+    if (command === "/id") {
+      await sendMessage(token, chatId, `Chat ID: ${chatId}`);
+    } else if (command === "/start") {
       await sendMessage(
         token,
         chatId,
