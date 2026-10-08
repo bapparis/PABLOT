@@ -15,6 +15,7 @@ export default function Home() {
   const [dailyLoading, setDailyLoading] = useState(false);
   const [treasureLoading, setTreasureLoading] = useState(false);
   const [ppBalance, setPpBalance] = useState(0);
+  const [ppPerUsd, setPpPerUsd] = useState(1000);
   const [totalEarned, setTotalEarned] = useState(0);
   const [tasks, setTasks] = useState<
     Array<{
@@ -77,7 +78,7 @@ export default function Home() {
       }
 
       try {
-        const [userResponse, tasksResponse] = await Promise.all([
+        const [userResponse, tasksResponse, settingsResponse] = await Promise.all([
           fetch("/api/telegram/user", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -87,7 +88,16 @@ export default function Home() {
             }),
           }),
           fetch("/api/tasks"),
+          fetch("/api/platform/public-settings"),
         ]);
+
+        if (settingsResponse.ok) {
+          const settingsData = await settingsResponse.json();
+          const rate = Number(settingsData.ppPerUsd);
+          if (active && Number.isFinite(rate) && rate > 0) {
+            setPpPerUsd(rate);
+          }
+        }
 
         if (userResponse.ok) {
           const userData = await userResponse.json();
@@ -575,7 +585,7 @@ export default function Home() {
         </header>
 
         {/* Balance */}
-        <section className="balance-card relative overflow-hidden rounded-[28px] p-6">
+        <section className="balance-card relative overflow-hidden rounded-[28px] p-5">
           <div className="absolute -right-12 -top-12 h-36 w-36 rounded-full bg-emerald-400/10 blur-2xl" />
 
           <p className="relative text-sm font-medium text-white/55">
@@ -591,7 +601,16 @@ export default function Home() {
             </span>
           </div>
 
-          <div className="relative mt-5 flex items-center justify-between">
+          <p className="relative mt-1 text-sm font-semibold text-emerald-300">
+            ≈ {(ppBalance / ppPerUsd).toLocaleString("en-US", {
+              style: "currency",
+              currency: "USD",
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })} estimated value
+          </p>
+
+          <div className="relative mt-4 flex items-center justify-between">
             <span className="text-xs text-white/45">
               Total earned
             </span>
@@ -602,7 +621,7 @@ export default function Home() {
         </section>
 
         {/* Daily Check */}
-        <section className="glass-panel mt-4 rounded-[20px] p-4">
+        <section className="glass-panel mt-3 rounded-[18px] p-3">
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-[9px] font-black uppercase tracking-[0.16em] text-emerald-300">
@@ -613,16 +632,16 @@ export default function Home() {
               </p>
             </div>
 
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-400/10 text-base">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-emerald-400/10 text-sm">
               🔥
             </div>
           </div>
 
-          <div className="mt-4 flex items-center justify-center gap-2">
+          <div className="mt-3 flex items-center justify-center gap-2">
             {[1, 2, 3].map((ad) => (
               <div
                 key={ad}
-                className={`h-2 w-12 rounded-full transition-all duration-300 ${
+                className={`h-1.5 w-10 rounded-full transition-all duration-300 ${
                   ad <= dailyAdsCompleted
                     ? "bg-emerald-400"
                     : "bg-white/10"
@@ -631,18 +650,18 @@ export default function Home() {
             ))}
           </div>
 
-          <p className="mt-2 text-center text-[9px] font-semibold text-white/35">
+          <p className="mt-1.5 text-center text-[9px] font-semibold text-white/35">
             {checkedInToday
               ? "3/3 ads completed"
               : "Watch 3 rewarded ads to check in"}
           </p>
 
-          <div className="mt-3 flex justify-center">
+          <div className="mt-2 flex justify-center">
             <button
               type="button"
               onClick={handleDailyCheckIn}
               disabled={dailyLoading || checkedInToday}
-              className="rounded-lg bg-emerald-400 px-5 py-2 text-[11px] font-black text-black transition active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60"
+              className="min-h-8 rounded-lg bg-emerald-400 px-3.5 py-1.5 text-[10px] font-black text-black transition active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {checkedInToday
                 ? "✅ CHECKED"
@@ -653,7 +672,7 @@ export default function Home() {
           </div>
 
           {treasureUnlocked && !treasureClaimed && (
-            <div className="mt-2 flex justify-center">
+            <div className="mt-1.5 flex justify-center">
               <button
                 type="button"
                 onClick={handleTreasure}
