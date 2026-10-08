@@ -214,22 +214,166 @@ ${WEB_APP_URL}`
         );
       }
     } else if (command === "/support") {
-      await sendMessage(
-        token,
-        chatId,
-        `🛠️ Human Support
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseKey = process.env.SUPABASE_SECRET_KEY;
 
-Please send your problem in your next message.
+      if (!supabaseUrl || !supabaseKey) {
+        await sendMessage(
+          token,
+          chatId,
+          "❌ Support is temporarily unavailable. Please try again later."
+        );
+      } else {
+        const supabase = createClient(supabaseUrl, supabaseKey);
+
+        const { data: existingTicket } = await supabase
+          .from("support_tickets")
+          .select("ticket_number")
+          .eq("telegram_id", telegramId)
+          .eq("status", "open")
+          .is("subject", null)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (existingTicket) {
+          await sendMessage(
+            token,
+            chatId,
+            `🛠️ You already have a support request waiting for your message.
+
+🎫 Ticket #PB-${existingTicket.ticket_number}
+
+Please send your problem in your next message.`
+          );
+        } else {
+          const { data: ticket, error: ticketError } = await supabase
+            .from("support_tickets")
+            .insert({
+              user_id: user?.id ?? null,
+              telegram_id: telegramId,
+              pablot_id: user?.pablot_id ?? null,
+              username: user?.username ?? null,
+              status: "open",
+            })
+            .select("id,ticket_number")
+            .single();
+
+          if (ticketError || !ticket) {
+            console.error("Support ticket creation failed:", ticketError);
+            await sendMessage(
+              token,
+              chatId,
+              "❌ I couldn't create your support request. Please try again."
+            );
+          } else {
+            await sendMessage(
+              token,
+              chatId,
+              `🛠️ Human Support
+
+Please describe your problem in your next message.
 
 Include:
 • What happened
 • What you were trying to do
 • Any error message you saw
 
-Your Telegram account will be used to identify your PABLOT account.
+🎫 Ticket #PB-${ticket.ticket_number}
 
 Our support team will review your request.`
-      );
+            );
+          }
+        }
+      }
+    } else if (!text.trim().startsWith("/")) {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseKey = process.env.SUPABASE_SECRET_KEY;
+
+      if (!supabaseUrl || !supabaseKey) {
+        await sendMessage(
+          token,
+          chatId,
+          "❌ Support is temporarily unavailable. Please try again later."
+        );
+      } else {
+        const supabase = createClient(supabaseUrl, supabaseKey);
+
+        const { data: ticket } = await supabase
+          .from("support_tickets")
+          .select("id,ticket_number,pablot_id,username")
+          .eq("telegram_id", telegramId)
+          .eq("status", "open")
+          .is("subject", null)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (ticket) {
+          const { error: messageError } = await supabase
+            .from("support_messages")
+            .insert({
+              ticket_id: ticket.id,
+              sender_type: "user",
+              sender_telegram_id: telegramId,
+              message: text.trim(),
+            });
+
+          if (messageError) {
+            console.error("Support message creation failed:", messageError);
+            await sendMessage(
+              token,
+              chatId,
+              "❌ I couldn't send your support request. Please try again."
+            );
+          } else {
+            await supabase
+              .from("support_tickets")
+              .update({
+                subject: text.trim().slice(0, 120),
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", ticket.id);
+
+            const supportChatId = process.env.PABLOT_SUPPORT_CHAT_ID;
+
+            if (supportChatId) {
+              await sendMessage(
+                token,
+                Number(supportChatId),
+                `🎫 NEW SUPPORT TICKET
+
+#PB-${ticket.ticket_number}
+
+👤 User: ${ticket.username ? `@${ticket.username}` : "No username"}
+🆔 PABLOT ID: ${ticket.pablot_id ?? "Not linked"}
+📱 Telegram ID: ${telegramId}
+
+💬 Message:
+${text.trim()}
+
+🟡 Status: OPEN`
+              );
+            }
+
+            await sendMessage(
+              token,
+              chatId,
+              `✅ Support request received.
+
+🎫 Ticket #PB-${ticket.ticket_number}
+
+Our support team has received your message and will review it.`
+            );
+          }
+        } else {
+          await sendMessage(
+            token,
+            chatId,
+            "🤖 I didn't recognize that command.\n\nUse /help to see the available PABLOT Support commands."
+          );
+        }
+      }
     } else {
       await sendMessage(
         token,
