@@ -128,7 +128,7 @@ export default function ProfilePage() {
             className="glass-panel rounded-[22px] p-5 transition active:scale-[0.98]"
           >
             <p className="text-xs text-white/40">
-              Available
+              {t("available")}
             </p>
 
             <p className="mt-2 text-2xl font-black">
@@ -145,7 +145,7 @@ export default function ProfilePage() {
             className="glass-panel rounded-[22px] p-5 transition active:scale-[0.98]"
           >
             <p className="text-xs text-white/40">
-              Total earned
+              {t("totalEarned")}
             </p>
 
             <p className="mt-2 text-2xl font-black">
@@ -153,7 +153,7 @@ export default function ProfilePage() {
             </p>
 
             <p className="mt-1 text-xs text-white/30">
-              lifetime PP
+              {t("lifetimePP")}
             </p>
           </Link>
         </section>
@@ -161,7 +161,7 @@ export default function ProfilePage() {
         <section className="glass-panel mt-4 overflow-hidden rounded-[24px]">
           <div className="px-5 py-4">
             <p className="text-xs font-bold uppercase tracking-wider text-white/30">
-              Your PABLOT
+              {t("yourPablot")}
             </p>
           </div>
 
@@ -197,7 +197,7 @@ export default function ProfilePage() {
         <section className="glass-panel mt-4 overflow-hidden rounded-[24px]">
           <div className="px-5 py-4">
             <p className="text-xs font-bold uppercase tracking-wider text-white/30">
-              App
+              {t("app")}
             </p>
           </div>
 
@@ -212,7 +212,7 @@ export default function ProfilePage() {
 
             <span className="flex-1">
               <span className="block text-sm font-bold">
-                Language
+                {t("language")}
               </span>
 
               <span className="mt-1 block text-xs text-white/35">
@@ -235,11 +235,11 @@ export default function ProfilePage() {
 
             <span className="flex-1">
               <span className="block text-sm font-bold">
-                Security & Privacy
+                {t("securityPrivacy")}
               </span>
 
               <span className="mt-1 block text-xs text-white/35">
-                Manage your account and privacy
+                {t("manageAccountPrivacy")}
               </span>
             </span>
 
@@ -261,11 +261,11 @@ export default function ProfilePage() {
 
               <span className="flex-1">
                 <span className="block text-sm font-bold">
-                  Support
+                  {t("support")}
                 </span>
 
                 <span className="mt-1 block text-xs text-white/35">
-                  Get help from the PABLOT team
+                  {t("supportDescription")}
                 </span>
               </span>
 
@@ -283,7 +283,7 @@ export default function ProfilePage() {
           >
             <span className="text-lg">🏆</span>
             <span className="mt-3 block text-sm font-bold">
-              Achievements
+              {t("achievements")}
             </span>
             <span className="mt-1 block text-xs text-white/30">
               Coming soon
@@ -296,7 +296,7 @@ export default function ProfilePage() {
           >
             <span className="text-lg">📊</span>
             <span className="mt-3 block text-sm font-bold">
-              Earnings
+              {t("earnings")}
             </span>
             <span className="mt-1 block text-xs text-white/30">
               Coming soon
@@ -305,9 +305,9 @@ export default function ProfilePage() {
         </section>
 
         <section className="mt-4 flex items-center justify-center gap-3 py-4 text-[11px] text-white/25">
-          <button type="button">Terms</button>
+          <button type="button">{t("terms")}</button>
           <span>•</span>
-          <button type="button">Privacy</button>
+          <button type="button">{t("privacy")}</button>
         </section>
 
         {languageOpen && (
@@ -321,9 +321,9 @@ export default function ProfilePage() {
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-lg font-black">Language</h2>
+                  <h2 className="text-lg font-black">{t("language")}</h2>
                   <p className="mt-1 text-xs text-white/35">
-                    Choose your preferred language
+                    {t("preferredLanguage")}
                   </p>
                 </div>
 
