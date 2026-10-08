@@ -14,6 +14,28 @@ export default function Home() {
   const [treasureClaimed, setTreasureClaimed] = useState(false);
   const [dailyLoading, setDailyLoading] = useState(false);
   const [treasureLoading, setTreasureLoading] = useState(false);
+  const [ppBalance, setPpBalance] = useState(0);
+  const [totalEarned, setTotalEarned] = useState(0);
+  const [tasks, setTasks] = useState<
+    Array<{
+      id: string;
+      title: string;
+      description: string | null;
+      type: string;
+      reward_pp: number;
+      target_url: string | null;
+      proof_required: boolean;
+      watch_config?: {
+        ads_required: number;
+        watch_duration_seconds: number;
+        cooldown_seconds: number;
+        pinned: boolean;
+        pin_order: number;
+      } | null;
+    }>
+  >([]);
+  const [tasksLoading, setTasksLoading] = useState(true);
+  const [completedTaskIds, setCompletedTaskIds] = useState<string[]>([]);
 
   useEffect(() => {
     const initializeTelegramUser = async () => {
@@ -42,6 +64,78 @@ export default function Home() {
     };
 
     initializeTelegramUser();
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadHomeData() {
+      const initData = window.Telegram?.WebApp?.initData;
+      if (!initData) {
+        if (active) setTasksLoading(false);
+        return;
+      }
+
+      try {
+        const [userResponse, tasksResponse] = await Promise.all([
+          fetch("/api/telegram/user", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              initData,
+              startParam: new URLSearchParams(window.location.search).get("startapp"),
+            }),
+          }),
+          fetch("/api/tasks"),
+        ]);
+
+        if (userResponse.ok) {
+          const userData = await userResponse.json();
+          const user = userData.user;
+
+          if (active && user) {
+            setPpBalance(Number(user.pp_balance) || 0);
+            setTotalEarned(Number(user.total_earned) || 0);
+          }
+        }
+
+        if (tasksResponse.ok) {
+          const tasksData = await tasksResponse.json();
+
+          if (active) {
+            setTasks(Array.isArray(tasksData.tasks) ? tasksData.tasks : []);
+          }
+        }
+
+        const completedResponse = await fetch("/api/tasks/completed", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ initData }),
+        });
+
+        if (completedResponse.ok) {
+          const completedData = await completedResponse.json();
+
+          if (active) {
+            setCompletedTaskIds(
+              Array.isArray(completedData.completedTaskIds)
+                ? completedData.completedTaskIds
+                : []
+            );
+          }
+        }
+      } catch {
+        // Keep the home screen available if data loading fails.
+      } finally {
+        if (active) setTasksLoading(false);
+      }
+    }
+
+    loadHomeData();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -410,6 +504,41 @@ export default function Home() {
         }
       }
 
+      if (consumed) {
+        const [userResponse, completedResponse] = await Promise.all([
+          fetch("/api/telegram/user", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              initData,
+              startParam: new URLSearchParams(window.location.search).get("startapp"),
+            }),
+          }),
+          fetch("/api/tasks/completed", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ initData }),
+          }),
+        ]);
+
+        if (userResponse.ok) {
+          const userData = await userResponse.json();
+          if (userData.user) {
+            setPpBalance(Number(userData.user.pp_balance) || 0);
+            setTotalEarned(Number(userData.user.total_earned) || 0);
+          }
+        }
+
+        if (completedResponse.ok) {
+          const completedData = await completedResponse.json();
+          setCompletedTaskIds(
+            Array.isArray(completedData.completedTaskIds)
+              ? completedData.completedTaskIds
+              : []
+          );
+        }
+      }
+
       if (!consumed) {
         setAdMessage(
           "⏳ Ad completed. Reward confirmation is still pending."
@@ -455,7 +584,7 @@ export default function Home() {
 
           <div className="relative mt-2 flex items-end gap-2">
             <span className="text-4xl font-black tracking-tight">
-              0
+              {ppBalance.toLocaleString()}
             </span>
             <span className="mb-1 text-sm font-bold text-emerald-300">
               PP
@@ -467,7 +596,7 @@ export default function Home() {
               Total earned
             </span>
             <span className="text-sm font-bold">
-              0 PP
+              {totalEarned.toLocaleString()} PP
             </span>
           </div>
         </section>
@@ -546,29 +675,40 @@ export default function Home() {
         </section>
 
         {/* Daily progress */}
-        <section className="glass-panel mt-4 rounded-[24px] p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-bold">Daily progress</p>
-              <p className="mt-1 text-xs text-white/45">
-                Complete tasks to earn PP
-              </p>
-            </div>
+        {(() => {
+          const completedCount = tasks.filter((task) =>
+            completedTaskIds.includes(task.id)
+          ).length;
+          const availableCount = tasks.length;
+          const progress =
+            availableCount > 0
+              ? Math.round((completedCount / availableCount) * 100)
+              : 0;
 
-            <span className="text-sm font-bold text-emerald-300">
-              0%
-            </span>
-          </div>
+          return (
+            <section className="glass-panel mt-3 rounded-[16px] px-4 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-xs font-bold">Daily progress</p>
+                  <p className="mt-0.5 text-[10px] text-white/40">
+                    {completedCount}/{availableCount} tasks completed
+                  </p>
+                </div>
 
-          <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/8">
-            <div className="h-full w-0 rounded-full bg-emerald-400" />
-          </div>
+                <span className="shrink-0 text-xs font-black text-emerald-300">
+                  {progress}%
+                </span>
+              </div>
 
-          <div className="mt-3 flex justify-between text-xs text-white/40">
-            <span>0 completed</span>
-            <span>0 available</span>
-          </div>
-        </section>
+              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/8">
+                <div
+                  className="h-full rounded-full bg-emerald-400 transition-all duration-500"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            </section>
+          );
+        })()}
 
         {/* Tasks */}
         <section className="mt-6">
@@ -580,28 +720,43 @@ export default function Home() {
           </div>
 
           <div className="space-y-3">
-
-            <TaskCard
-              icon="✈️"
-              title="Join our Telegram"
-              description="Join the official PABLOT channel"
-              reward="+50 PP"
-            />
-
-            <TaskCard
-              icon="▶️"
-              title="Watch a video"
-              description="Watch and complete the task"
-              reward="+10 PP"
-            />
-
-            <TaskCard
-              icon="🔗"
-              title="Visit a website"
-              description="Visit the sponsored page"
-              reward="+20 PP"
-            />
-
+            {tasksLoading ? (
+              <div className="glass-panel rounded-[22px] p-5 text-center text-sm text-white/40">
+                Loading tasks...
+              </div>
+            ) : tasks.length === 0 ? (
+              <div className="glass-panel rounded-[22px] p-5 text-center">
+                <p className="font-bold">No tasks available</p>
+                <p className="mt-1 text-xs text-white/40">
+                  Check back soon for new opportunities.
+                </p>
+              </div>
+            ) : (
+              tasks.map((task) => (
+                <TaskCard
+                  key={task.id}
+                  icon={
+                    task.type === "watch_ads"
+                      ? "▶️"
+                      : task.type === "follow"
+                        ? "📢"
+                        : task.type === "join"
+                          ? "✈️"
+                          : task.type === "visit"
+                            ? "🔗"
+                            : "🎯"
+                  }
+                  title={task.title}
+                  description={task.description ?? "Complete this task to earn PP"}
+                  reward={`+${task.reward_pp} PP`}
+                  onClick={
+                    task.type === "watch_ads"
+                      ? handleWatchAd
+                      : undefined
+                  }
+                />
+              ))
+            )}
           </div>
         </section>
 
@@ -636,15 +791,21 @@ function TaskCard({
   title,
   description,
   reward,
+  onClick,
 }: {
   icon: string;
   title: string;
   description: string;
   reward: string;
+  onClick?: () => void;
 }) {
   return (
-    <button className="task-card group flex w-full items-center gap-4 rounded-[22px] p-4 text-left">
-      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/6 text-xl transition-transform duration-200 group-active:scale-90">
+    <button
+      type="button"
+      onClick={onClick}
+      className="task-card group flex w-full items-center gap-3 rounded-[18px] p-3 text-left"
+    >
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/6 text-lg transition-transform duration-200 group-active:scale-90">
         {icon}
       </div>
 
@@ -655,7 +816,7 @@ function TaskCard({
         </p>
       </div>
 
-      <div className="shrink-0 rounded-full bg-emerald-400/10 px-3 py-1.5 text-xs font-bold text-emerald-300">
+      <div className="shrink-0 rounded-full bg-emerald-400/10 px-2.5 py-1 text-[10px] font-bold text-emerald-300">
         {reward}
       </div>
     </button>
