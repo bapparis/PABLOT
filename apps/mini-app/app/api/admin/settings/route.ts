@@ -41,6 +41,8 @@ const ALLOWED_KEYS = new Set([
   "payments_channel_username",
   "payments_channel_enabled",
   "default_language",
+  "support_enabled",
+  "support_telegram_url",
 ]);
 
 function getAdminSupabase() {

@@ -38,6 +38,8 @@ export type PlatformSettings = {
   paymentsChannelUsername: string;
   paymentsChannelEnabled: boolean;
   defaultLanguage: "en" | "fr";
+  supportEnabled: boolean;
+  supportTelegramUrl: string;
 };
 
 function getAdminSupabase() {
@@ -219,5 +221,7 @@ export async function getPlatformSettings(): Promise<PlatformSettings> {
       false
     ),
     defaultLanguage,
+    supportEnabled: readBoolean(settings.support_enabled, true),
+    supportTelegramUrl: readString(settings.support_telegram_url, ""),
   };
 }

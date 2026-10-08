@@ -42,6 +42,8 @@ type Settings = {
   paymentsChannelUsername: string;
   paymentsChannelEnabled: boolean;
   defaultLanguage: "en" | "fr";
+  supportEnabled: boolean;
+  supportTelegramUrl: string;
 };
 
 export default function AdminSettingsClient() {
@@ -157,6 +159,8 @@ export default function AdminSettingsClient() {
           payments_channel_username: draft.paymentsChannelUsername,
           payments_channel_enabled: draft.paymentsChannelEnabled,
           default_language: draft.defaultLanguage,
+          support_enabled: draft.supportEnabled,
+          support_telegram_url: draft.supportTelegramUrl,
         }),
       });
 
@@ -781,6 +785,51 @@ export default function AdminSettingsClient() {
                 The username is for admin reference. The channel ID is what the bot uses to publish payment proofs.
               </p>
             </div>
+          </section>
+
+          <section className="rounded-3xl border border-[#163044] bg-[#08131d] p-5">
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-[#59D9FF]">
+              Support
+            </p>
+            <h2 className="mt-1 text-lg font-black">
+              User support
+            </h2>
+            <p className="mt-1 text-xs text-[#91a8b8]">
+              Configure where users go when they need help.
+            </p>
+
+            <label className="mt-5 flex min-h-14 cursor-pointer items-center justify-between gap-4 rounded-2xl border border-[#163044] bg-[#0b1823] px-4">
+              <div>
+                <p className="text-sm font-black">Support enabled</p>
+                <p className="text-xs text-[#91a8b8]">
+                  Show the support option in the PABLOT app.
+                </p>
+              </div>
+
+              <input
+                type="checkbox"
+                checked={draft.supportEnabled}
+                onChange={(event) =>
+                  updateDraft("supportEnabled", event.target.checked)
+                }
+                className="h-5 w-5 accent-[#59D9FF]"
+              />
+            </label>
+
+            <label className="mt-4 block">
+              <span className="text-xs font-bold text-[#91a8b8]">
+                Telegram support URL
+              </span>
+              <input
+                type="url"
+                value={draft.supportTelegramUrl}
+                onChange={(event) =>
+                  updateDraft("supportTelegramUrl", event.target.value)
+                }
+                placeholder="https://t.me/your_support"
+                className="mt-2 min-h-12 w-full rounded-xl border border-[#163044] bg-[#0b1823] px-3 text-sm font-bold text-white outline-none placeholder:text-[#536b7b] focus:border-[#59D9FF]"
+              />
+            </label>
           </section>
         </div>
       </div>

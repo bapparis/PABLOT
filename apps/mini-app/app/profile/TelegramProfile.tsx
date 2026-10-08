@@ -17,7 +17,13 @@ interface User {
   notifications_enabled: boolean;
 }
 
-export default function TelegramProfile() {
+interface TelegramProfileProps {
+  onUserLoaded?: (user: User) => void;
+}
+
+export default function TelegramProfile({
+  onUserLoaded,
+}: TelegramProfileProps) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -51,6 +57,7 @@ export default function TelegramProfile() {
         }
 
         setUser(data.user);
+        onUserLoaded?.(data.user);
       } catch (err) {
         setError(
           err instanceof Error
