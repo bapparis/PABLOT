@@ -10,35 +10,37 @@ interface ProfileUser {
 }
 import TelegramProfile from "./TelegramProfile";
 import BottomNav from "@/components/BottomNav";
+import { useI18n } from "@/lib/i18n/provider";
 
 const items = [
   {
     icon: "💰",
-    title: "Wallet",
-    description: "Manage your balance and withdrawal wallet",
+    title: "wallet",
+    description: "walletDescription",
     href: "/wallet",
   },
   {
     icon: "↗️",
-    title: "Withdraw",
-    description: "Request a crypto payout",
+    title: "withdraw",
+    description: "withdrawDescription",
     href: "/withdraw",
   },
   {
     icon: "🎁",
-    title: "Referrals",
-    description: "Invite friends and earn bonuses",
+    title: "referrals",
+    description: "referralsDescription",
     href: "/referrals",
   },
   {
     icon: "✅",
-    title: "My Tasks",
-    description: "View available and completed tasks",
+    title: "myTasks",
+    description: "myTasksDescription",
     href: "/tasks",
   },
 ];
 
 export default function ProfilePage() {
+  const { t, language, setLanguage } = useI18n();
   const [supportEnabled, setSupportEnabled] = useState(false);
   const [supportUrl, setSupportUrl] = useState("");
   const [user, setUser] = useState<ProfileUser | null>(null);
@@ -78,43 +80,24 @@ export default function ProfilePage() {
   ] as const;
 
   const currentLanguage =
-    languages.find((item) => item.code === user?.language) ?? languages[0];
+    languages.find((item) => item.code === language) ?? languages[0];
 
-  async function changeLanguage(language: ProfileUser["language"]) {
-    if (!user || languageSaving) return;
+  async function changeLanguage(nextLanguage: ProfileUser["language"]) {
+    if (languageSaving || nextLanguage === language) {
+      setLanguageOpen(false);
+      return;
+    }
 
     setLanguageSaving(true);
 
     try {
-      const webApp = (await import("@/lib/telegram")).initTelegramWebApp();
-
-      if (!webApp?.initData) {
-        throw new Error("Open PABLOT from Telegram.");
-      }
-
-      const response = await fetch("/api/telegram/preferences", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          initData: webApp.initData,
-          language,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data?.error || "Unable to update language.");
-      }
+      await setLanguage(nextLanguage);
 
       setUser((current) =>
-        current ? { ...current, language: data.language } : current
+        current ? { ...current, language: nextLanguage } : current,
       );
+
       setLanguageOpen(false);
-    } catch (error) {
-      console.error(error);
     } finally {
       setLanguageSaving(false);
     }
@@ -129,11 +112,11 @@ export default function ProfilePage() {
           </p>
 
           <h1 className="mt-1 text-3xl font-black tracking-tight">
-            Profile
+            {t("profile")}
           </h1>
 
           <p className="mt-1 text-sm text-white/35">
-            Your account, rewards and settings
+            {t("accountDescription")}
           </p>
         </header>
 
@@ -196,11 +179,11 @@ export default function ProfilePage() {
 
               <span className="min-w-0 flex-1">
                 <span className="block text-sm font-bold">
-                  {item.title}
+                  {t(item.title)}
                 </span>
 
                 <span className="mt-1 block text-xs text-white/35">
-                  {item.description}
+                  {t(item.description)}
                 </span>
               </span>
 

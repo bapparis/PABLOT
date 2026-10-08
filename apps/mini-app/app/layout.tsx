@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Script from "next/script";
 import "./globals.css";
+import { I18nProvider } from "@/lib/i18n/provider";
 
 export const metadata: Metadata = {
   title: "PABLOT",
@@ -31,7 +32,7 @@ export default function RootLayout({
           data-sdk="show_11934399"
           strategy="afterInteractive"
         />
-        {children}
+        <I18nProvider>{children}</I18nProvider>
       </body>
     </html>
   );
