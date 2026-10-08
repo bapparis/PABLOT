@@ -50,6 +50,28 @@ async function getUser(telegramId: number) {
   return data;
 }
 
+
+async function isSupportAdmin(
+  token: string,
+  chatId: number,
+  telegramId: number
+) {
+  const supportChatId = Number(process.env.PABLOT_SUPPORT_CHAT_ID);
+
+  if (!supportChatId || chatId !== supportChatId) return false;
+
+  const response = await fetch(
+    `https://api.telegram.org/bot${token}/getChatMember?chat_id=${chatId}&user_id=${telegramId}`
+  );
+
+  if (!response.ok) return false;
+
+  const data = await response.json();
+  const status = data?.result?.status;
+
+  return status === "administrator" || status === "creator";
+}
+
 export async function POST(request: Request) {
   try {
     const token = process.env.PABLOT_SUPPORT_BOT_TOKEN;
@@ -86,6 +108,168 @@ export async function POST(request: Request) {
 
     if (command === "/id") {
       await sendMessage(token, chatId, `Chat ID: ${chatId}`);
+    } else if (command === "/reply") {
+      const isAdmin = await isSupportAdmin(token, chatId, telegramId);
+
+      if (!isAdmin) {
+        await sendMessage(token, chatId, "❌ This command is only available to PABLOT Support administrators.");
+      } else {
+        const parts = text.trim().split(/\\s+/);
+        const ticketRef = parts[1]?.toUpperCase();
+        const replyText = parts.slice(2).join(" ").trim();
+
+        if (!ticketRef || !/^PB-\\d+$/.test(ticketRef) || !replyText) {
+          await sendMessage(
+            token,
+            chatId,
+            "Usage:\n/reply PB-123 Your message to the user"
+          );
+        } else {
+          const ticketNumber = Number(ticketRef.slice(3));
+          const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+          const supabaseKey = process.env.SUPABASE_SECRET_KEY;
+
+          if (!supabaseUrl || !supabaseKey) {
+            await sendMessage(token, chatId, "❌ Support database is unavailable.");
+          } else {
+            const supabase = createClient(supabaseUrl, supabaseKey);
+
+            const { data: ticket } = await supabase
+              .from("support_tickets")
+              .select("id,ticket_number,telegram_id,status")
+              .eq("ticket_number", ticketNumber)
+              .maybeSingle();
+
+            if (!ticket) {
+              await sendMessage(token, chatId, `❌ Ticket ${ticketRef} was not found.`);
+            } else if (ticket.status === "closed") {
+              await sendMessage(token, chatId, `❌ Ticket ${ticketRef} is already closed.`);
+            } else {
+              const { error: messageError } = await supabase
+                .from("support_messages")
+                .insert({
+                  ticket_id: ticket.id,
+                  sender_type: "support",
+                  sender_telegram_id: telegramId,
+                  message: replyText,
+                });
+
+              if (messageError) {
+                console.error("Support reply creation failed:", messageError);
+                await sendMessage(token, chatId, "❌ Failed to save the reply.");
+              } else {
+                await supabase
+                  .from("support_tickets")
+                  .update({
+                    status: "in_progress",
+                    updated_at: new Date().toISOString(),
+                  })
+                  .eq("id", ticket.id);
+
+                await sendMessage(
+                  token,
+                  ticket.telegram_id,
+                  `🛠️ PABLOT Support
+
+🎫 Ticket #PB-${ticket.ticket_number}
+
+${replyText}
+
+If you need further help, reply here or use /support.
+
+Powered by BAGLOT`
+                );
+
+                await sendMessage(
+                  token,
+                  chatId,
+                  `✅ Reply sent to #PB-${ticket.ticket_number}.`
+                );
+              }
+            }
+          }
+        }
+      }
+    } else if (command === "/close") {
+      const isAdmin = await isSupportAdmin(token, chatId, telegramId);
+
+      if (!isAdmin) {
+        await sendMessage(token, chatId, "❌ This command is only available to PABLOT Support administrators.");
+      } else {
+        const parts = text.trim().split(/\\s+/);
+        const ticketRef = parts[1]?.toUpperCase();
+
+        if (!ticketRef || !/^PB-\\d+$/.test(ticketRef)) {
+          await sendMessage(
+            token,
+            chatId,
+            "Usage:\n/close PB-123"
+          );
+        } else {
+          const ticketNumber = Number(ticketRef.slice(3));
+          const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+          const supabaseKey = process.env.SUPABASE_SECRET_KEY;
+
+          if (!supabaseUrl || !supabaseKey) {
+            await sendMessage(token, chatId, "❌ Support database is unavailable.");
+          } else {
+            const supabase = createClient(supabaseUrl, supabaseKey);
+
+            const { data: ticket } = await supabase
+              .from("support_tickets")
+              .select("id,ticket_number,telegram_id,status")
+              .eq("ticket_number", ticketNumber)
+              .maybeSingle();
+
+            if (!ticket) {
+              await sendMessage(token, chatId, `❌ Ticket ${ticketRef} was not found.`);
+            } else if (ticket.status === "closed") {
+              await sendMessage(token, chatId, `ℹ️ Ticket ${ticketRef} is already closed.`);
+            } else {
+              const { error } = await supabase
+                .from("support_tickets")
+                .update({
+                  status: "closed",
+                  closed_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString(),
+                })
+                .eq("id", ticket.id);
+
+              if (error) {
+                console.error("Support ticket close failed:", error);
+                await sendMessage(token, chatId, "❌ Failed to close the ticket.");
+              } else {
+                await supabase
+                  .from("support_messages")
+                  .insert({
+                    ticket_id: ticket.id,
+                    sender_type: "support",
+                    sender_telegram_id: telegramId,
+                    message: "Ticket closed by support.",
+                  });
+
+                await sendMessage(
+                  token,
+                  ticket.telegram_id,
+                  `✅ PABLOT Support
+
+🎫 Ticket #PB-${ticket.ticket_number} has been closed.
+
+If you need further assistance, use /support again.
+
+Powered by BAGLOT`
+                );
+
+                await sendMessage(
+                  token,
+                  chatId,
+                  `✅ Ticket #PB-${ticket.ticket_number} closed.`
+                );
+              }
+            }
+          }
+        }
+      }
     } else if (command === "/start") {
       await sendMessage(
         token,
