@@ -78,6 +78,7 @@ export default function TasksPage() {
   >({});
   const [now, setNow] = useState(() => Date.now());
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -440,7 +441,7 @@ export default function TasksPage() {
             current.filter((id) => id !== task.id)
           );
 
-          setError(
+          setSuccessMessage(
             `+${Number(
               completeData?.reward_pp ?? 0
             )} PP earned!`
@@ -682,6 +683,7 @@ export default function TasksPage() {
     }
 
     setError("");
+    setSuccessMessage("");
 
     if (task.type === "watch_ads") {
       startWatchTask(task);
@@ -890,6 +892,12 @@ export default function TasksPage() {
         {error && (
           <div className="mb-4 rounded-xl border border-red-400/20 bg-red-400/10 px-3 py-2 text-xs leading-4 text-red-200">
             {error}
+          </div>
+        )}
+
+        {successMessage && (
+          <div className="mb-4 rounded-xl border border-green-400/20 bg-green-400/10 px-3 py-2 text-xs leading-4 text-green-300">
+            💚 {successMessage}
           </div>
         )}
 
