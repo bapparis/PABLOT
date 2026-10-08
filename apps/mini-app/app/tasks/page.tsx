@@ -4,6 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import BottomNav from "@/components/BottomNav";
 import { initTelegramWebApp } from "@/lib/telegram";
 
+interface WatchCycle {
+  status: string;
+  ads_completed: number;
+  available_at: string | null;
+}
+
 interface Task {
   id: string;
   title: string;
@@ -53,7 +59,19 @@ export default function TasksPage() {
   const [watchProgress, setWatchProgress] = useState<
     Record<string, { adsCompleted: number; adsRequired: number }>
   >({});
+  const [watchCycles, setWatchCycles] = useState<
+    Record<string, WatchCycle>
+  >({});
+  const [now, setNow] = useState(() => Date.now());
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, []);
 
   const availableTasks = useMemo(
     () =>
@@ -306,6 +324,31 @@ export default function TasksPage() {
       setTasks(data.tasks ?? []);
 
       if (webApp?.initData) {
+        const watchStatusResponse = await fetch(
+          "/api/tasks/watch/status",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              initData: webApp.initData,
+            }),
+            cache: "no-store",
+          }
+        );
+
+        const watchStatusData =
+          await watchStatusResponse.json();
+
+        if (watchStatusResponse.ok) {
+          setWatchCycles(
+            watchStatusData.cycles ?? {}
+          );
+        }
+      }
+
+      if (webApp?.initData) {
         const completedResponse = await fetch(
           "/api/tasks/completed",
           {
@@ -523,6 +566,43 @@ export default function TasksPage() {
     verifyAndClaim(task);
   }
 
+  function formatCooldown(
+    availableAt: string | null
+  ) {
+    if (!availableAt) {
+      return null;
+    }
+
+    const remaining = Math.max(
+      0,
+      new Date(availableAt).getTime() - now
+    );
+
+    if (remaining <= 0) {
+      return null;
+    }
+
+    const totalSeconds = Math.ceil(
+      remaining / 1000
+    );
+
+    const hours = Math.floor(
+      totalSeconds / 3600
+    );
+
+    const minutes = Math.floor(
+      (totalSeconds % 3600) / 60
+    );
+
+    const seconds = totalSeconds % 60;
+
+    return [
+      String(hours).padStart(2, "0"),
+      String(minutes).padStart(2, "0"),
+      String(seconds).padStart(2, "0"),
+    ].join(":");
+  }
+
   function getButtonLabel(task: Task) {
     if (completedTaskIds.includes(task.id)) {
       return "✓";
@@ -539,6 +619,14 @@ export default function TasksPage() {
     }
 
     if (task.type === "watch_ads") {
+      const cooldown = formatCooldown(
+        watchCycles[task.id]?.available_at ?? null
+      );
+
+      if (cooldown) {
+        return cooldown;
+      }
+
       const progress = watchProgress[task.id];
 
       if (progress) {
@@ -709,9 +797,22 @@ export default function TasksPage() {
                   type="button"
                   onClick={() => handleTask(task)}
                   disabled={
-                    processingTaskId !== null
+                    processingTaskId !== null ||
+                    Boolean(
+                      task.type === "watch_ads" &&
+                        formatCooldown(
+                          watchCycles[task.id]?.available_at ?? null
+                        )
+                    )
                   }
-                  className="shrink-0 rounded-lg bg-[#b8f34a] px-2.5 py-1.5 text-[10px] font-bold text-[#071008] transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                  className={`shrink-0 rounded-lg px-2.5 py-1.5 text-[10px] font-bold transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                    task.type === "watch_ads" &&
+                    formatCooldown(
+                      watchCycles[task.id]?.available_at ?? null
+                    )
+                      ? "bg-white/10 text-white/55"
+                      : "bg-[#b8f34a] text-[#071008] active:scale-95"
+                  }`}
                 >
                   {getButtonLabel(task)}
                 </button>
