@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 
 const WEB_APP_URL = "https://t.me/PABLOTX_bot";
 
@@ -31,20 +32,22 @@ async function getUser(telegramId: number) {
 
   if (!url || !key) return null;
 
-  const response = await fetch(
-    `${url}/rest/v1/users?select=id,pablot_id,username,pp_balance,total_earned&eq.telegram_id=eq.${telegramId}&limit=1`,
-    {
-      headers: {
-        apikey: key,
-        Authorization: `Bearer ${key}`,
-      },
-    }
-  );
+  const supabase = createClient(url, key);
 
-  if (!response.ok) return null;
+  const { data, error } = await supabase
+    .from("users")
+    .select(
+      "id,pablot_id,username,pp_balance,total_earned"
+    )
+    .eq("telegram_id", telegramId)
+    .maybeSingle();
 
-  const users = await response.json();
-  return users?.[0] ?? null;
+  if (error) {
+    console.error("Support user lookup failed:", error);
+    return null;
+  }
+
+  return data;
 }
 
 export async function POST(request: Request) {
