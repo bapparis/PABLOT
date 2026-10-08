@@ -328,8 +328,14 @@ export default function ProfilePage() {
         </section>
 
         {languageOpen && (
-          <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-4">
-            <div className="glass-panel w-full max-w-md rounded-[28px] p-5">
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+            onClick={() => setLanguageOpen(false)}
+          >
+            <div
+              className="glass-panel w-full max-w-md rounded-[28px] p-5"
+              onClick={(event) => event.stopPropagation()}
+            >
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-lg font-black">Language</h2>
