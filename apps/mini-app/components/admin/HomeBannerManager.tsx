@@ -139,17 +139,6 @@ export default function HomeBannerManager() {
       return;
     }
 
-    if (
-      banners.some(
-        (banner) =>
-          Boolean(banner.buttonText.trim()) !==
-          Boolean(banner.destinationUrl.trim())
-      )
-    ) {
-      setMessage("Enter both a button label and its destination URL, or leave both empty.");
-      return;
-    }
-
     setSaving(true);
     setMessage("");
 

@@ -735,7 +735,31 @@ export default function Home() {
 
         {homeBanners.length > 0 && (
           <section className="mt-2" aria-label="PABLOT promotions">
-            <div className="relative h-[104px] overflow-hidden rounded-2xl border border-white/10 bg-[#0b1820]">
+            <div
+              className="relative h-[116px] select-none overflow-hidden rounded-2xl border border-white/10 bg-[#0b1820] touch-pan-y"
+              onTouchStart={(event) => {
+                event.currentTarget.dataset.touchStartX = String(
+                  event.touches[0]?.clientX ?? 0
+                );
+              }}
+              onTouchEnd={(event) => {
+                const startX = Number(
+                  event.currentTarget.dataset.touchStartX
+                );
+                const endX = event.changedTouches[0]?.clientX ?? startX;
+                const distance = endX - startX;
+
+                if (Math.abs(distance) < 45 || homeBanners.length < 2) {
+                  return;
+                }
+
+                setActiveBannerIndex((current) =>
+                  distance < 0
+                    ? (current + 1) % homeBanners.length
+                    : (current - 1 + homeBanners.length) % homeBanners.length
+                );
+              }}
+            >
               {homeBanners.map((banner, index) =>
                 index === activeBannerIndex % homeBanners.length ? (
                   <div key={banner.id} className="absolute inset-0">
@@ -743,24 +767,30 @@ export default function Home() {
                       <img
                         src={banner.imageUrl}
                         alt=""
-                        className="absolute inset-0 h-full w-full object-cover opacity-35"
+                        draggable={false}
+                        className="absolute inset-0 h-full w-full object-cover opacity-75"
                       />
                     )}
-                    <div className="absolute inset-0 bg-gradient-to-r from-[#071018] via-[#071018]/85 to-transparent" />
-                    <div className="relative flex h-full items-center justify-between gap-2 px-3 py-2">
-                      <div className="min-w-0 flex-1">
+
+                    <div className="absolute inset-0 bg-gradient-to-r from-[#071018]/55 via-[#071018]/15 to-transparent" />
+
+                    <div className="relative flex h-full items-center gap-2 px-3 py-2">
+                      <div className="flex h-full min-w-0 flex-1 flex-col items-start">
                         <p className="text-[8px] font-black uppercase tracking-[0.16em] text-emerald-300">
                           FEATURED
                         </p>
-                        <h3 className="truncate text-sm font-black text-white">
+
+                        <h3 className="mt-0.5 max-w-full truncate text-sm font-black text-white">
                           {banner.title}
                         </h3>
+
                         {banner.description && (
-                          <p className="mt-0.5 line-clamp-2 text-[10px] leading-4 text-white/65">
+                          <p className="mt-auto line-clamp-2 max-w-full text-[10px] leading-4 text-white/90">
                             {banner.description}
                           </p>
                         )}
                       </div>
+
                       {banner.buttonText && banner.destinationUrl && (
                         <a
                           href={banner.destinationUrl}
@@ -784,7 +814,9 @@ export default function Home() {
                     key={banner.id}
                     type="button"
                     aria-label={`Show banner ${index + 1}`}
-                    aria-current={index === activeBannerIndex % homeBanners.length}
+                    aria-current={
+                      index === activeBannerIndex % homeBanners.length
+                    }
                     onClick={() => setActiveBannerIndex(index)}
                     className={`h-1.5 rounded-full transition-all ${
                       index === activeBannerIndex % homeBanners.length
