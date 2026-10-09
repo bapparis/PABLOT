@@ -24,6 +24,7 @@ export default function HomeBannerManager() {
   const [banners, setBanners] = useState<HomeBanner[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
@@ -89,6 +90,47 @@ export default function HomeBannerManager() {
       { ...emptyBanner(), order: current.length },
     ]);
     setMessage("");
+  }
+
+  async function uploadBannerImage(id: string, file: File) {
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+
+    if (!allowedTypes.includes(file.type)) {
+      setMessage("Choose a JPEG, PNG, WebP, or GIF image.");
+      return;
+    }
+
+    if (file.size === 0 || file.size > 5 * 1024 * 1024) {
+      setMessage("Choose an image smaller than 5 MB.");
+      return;
+    }
+
+    setUploadingId(id);
+    setMessage("");
+
+    try {
+      const form = new FormData();
+      form.append("file", file);
+
+      const response = await fetch("/api/admin/banners/upload", {
+        method: "POST",
+        body: form,
+      });
+      const data = await response.json();
+
+      if (!response.ok || typeof data.imageUrl !== "string") {
+        throw new Error(data.error || "Image upload failed.");
+      }
+
+      updateBanner(id, { imageUrl: data.imageUrl });
+      setMessage("Image uploaded. Save banners to publish the change.");
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : "Image upload failed."
+      );
+    } finally {
+      setUploadingId(null);
+    }
   }
 
   async function saveBanners() {
@@ -254,18 +296,49 @@ export default function HomeBannerManager() {
                   />
                 </label>
 
-                <label className="text-xs font-semibold text-[#91a8b8]">
-                  Image URL (optional)
+                <div className="text-xs font-semibold text-[#91a8b8]">
+                  Banner image (optional)
+                  <div className="mt-1 flex flex-wrap items-center gap-3">
+                    {banner.imageUrl ? (
+                      <img
+                        src={banner.imageUrl}
+                        alt={`Preview of ${banner.title || "banner"}`}
+                        className="h-16 w-28 rounded-lg border border-[#163044] object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-16 w-28 items-center justify-center rounded-lg border border-dashed border-[#163044] text-[10px] text-[#91a8b8]">
+                        No image
+                      </div>
+                    )}
+                    <label className="inline-flex min-h-10 cursor-pointer items-center rounded-xl border border-[#163044] px-3 text-xs font-bold text-white">
+                      {uploadingId === banner.id ? "Uploading…" : banner.imageUrl ? "Replace image" : "Choose image"}
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,image/gif"
+                        className="sr-only"
+                        disabled={uploadingId !== null}
+                        onChange={(event) => {
+                          const file = event.target.files?.[0];
+                          if (file) void uploadBannerImage(banner.id, file);
+                          event.currentTarget.value = "";
+                        }}
+                      />
+                    </label>
+                  </div>
                   <input
                     className={inputClass}
                     type="url"
                     value={banner.imageUrl}
-                    placeholder="https://example.com/banner.jpg"
+                    placeholder="Or paste an image URL"
+                    aria-label={`Image URL for banner ${index + 1}`}
                     onChange={(event) =>
                       updateBanner(banner.id, { imageUrl: event.target.value })
                     }
                   />
-                </label>
+                  <p className="mt-1 text-[10px] font-normal text-[#91a8b8]">
+                    JPEG, PNG, WebP, or GIF · Maximum 5 MB.
+                  </p>
+                </div>
 
                 <label className="text-xs font-semibold text-[#91a8b8] sm:col-span-2">
                   Description
