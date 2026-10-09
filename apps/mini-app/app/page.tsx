@@ -736,22 +736,18 @@ export default function Home() {
         {homeBanners.length > 0 && (
           <section className="mt-2" aria-label="PABLOT promotions">
             <div
-              className="relative h-[116px] select-none overflow-hidden rounded-2xl border border-white/10 bg-[#0b1820] touch-pan-y"
+              className="relative h-[116px] overflow-hidden rounded-2xl border border-white/10 bg-[#0b1820] touch-pan-y"
               onTouchStart={(event) => {
                 event.currentTarget.dataset.touchStartX = String(
                   event.touches[0]?.clientX ?? 0
                 );
               }}
               onTouchEnd={(event) => {
-                const startX = Number(
-                  event.currentTarget.dataset.touchStartX
-                );
+                const startX = Number(event.currentTarget.dataset.touchStartX);
                 const endX = event.changedTouches[0]?.clientX ?? startX;
                 const distance = endX - startX;
 
-                if (Math.abs(distance) < 45 || homeBanners.length < 2) {
-                  return;
-                }
+                if (Math.abs(distance) < 45 || homeBanners.length < 2) return;
 
                 setActiveBannerIndex((current) =>
                   distance < 0
@@ -760,9 +756,17 @@ export default function Home() {
                 );
               }}
             >
-              {homeBanners.map((banner, index) =>
-                index === activeBannerIndex % homeBanners.length ? (
-                  <div key={banner.id} className="absolute inset-0">
+              <div
+                className="absolute inset-0 flex transition-transform duration-500 ease-in-out motion-reduce:transition-none"
+                style={{
+                  transform: `translateX(-${(activeBannerIndex % homeBanners.length) * 100}%)`,
+                }}
+              >
+                {homeBanners.map((banner) => (
+                  <div
+                    key={banner.id}
+                    className="relative h-full w-full shrink-0"
+                  >
                     {banner.imageUrl && (
                       <img
                         src={banner.imageUrl}
@@ -803,8 +807,8 @@ export default function Home() {
                       )}
                     </div>
                   </div>
-                ) : null
-              )}
+                ))}
+              </div>
             </div>
 
             {homeBanners.length > 1 && (
