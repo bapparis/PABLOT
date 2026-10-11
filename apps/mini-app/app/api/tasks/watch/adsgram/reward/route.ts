@@ -1,42 +1,44 @@
 import { NextRequest, NextResponse } from "next/server";
+import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
 
-function getSupabase() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY;
+export const dynamic = "force-dynamic";
 
-  if (!supabaseUrl || !supabaseSecretKey) {
-    return null;
-  }
+function secretMatches(received: string, expected: string): boolean {
+  const receivedBuffer = Buffer.from(received, "utf8");
+  const expectedBuffer = Buffer.from(expected, "utf8");
 
-  return createClient(
-    supabaseUrl,
-    supabaseSecretKey
+  return (
+    receivedBuffer.length === expectedBuffer.length &&
+    crypto.timingSafeEqual(receivedBuffer, expectedBuffer)
   );
 }
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = getSupabase();
+    const expectedSecret = process.env.ADSGRAM_REWARD_SECRET;
+    const params = request.nextUrl.searchParams;
+    const receivedSecret = params.get("secret") ?? "";
 
-    if (!supabase) {
+    if (!expectedSecret) {
+      console.error("AdsGram reward secret is not configured.");
+
       return NextResponse.json(
         { error: "Server configuration is incomplete." },
-        { status: 500 }
+        { status: 503 }
       );
     }
 
-    const telegramId =
-      request.nextUrl.searchParams.get("userid");
-
-    if (!telegramId) {
+    if (!receivedSecret || !secretMatches(receivedSecret, expectedSecret)) {
       return NextResponse.json(
-        { error: "userid is required." },
-        { status: 400 }
+        { error: "Unauthorized callback." },
+        { status: 401 }
       );
     }
 
-    if (!/^\d+$/.test(telegramId)) {
+    const telegramId = params.get("userid");
+
+    if (!telegramId || !/^\d+$/.test(telegramId)) {
       return NextResponse.json(
         { error: "Invalid userid." },
         { status: 400 }
@@ -52,6 +54,25 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY;
+
+    if (!supabaseUrl || !supabaseSecretKey) {
+      console.error("AdsGram Supabase configuration is incomplete.");
+
+      return NextResponse.json(
+        { error: "Server configuration is incomplete." },
+        { status: 503 }
+      );
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseSecretKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    });
+
     const { data, error } = await supabase.rpc(
       "confirm_adsgram_watch_attempt",
       {
@@ -62,65 +83,40 @@ export async function GET(request: NextRequest) {
     if (error) {
       const message = error.message;
 
-      if (message.includes("WATCH_USER_NOT_FOUND")) {
-        return NextResponse.json(
-          {
-            error: "PABLOT account not found.",
-            code: "WATCH_USER_NOT_FOUND",
-          },
-          { status: 404 }
-        );
-      }
-
-      if (message.includes("WATCH_ATTEMPT_NOT_FOUND")) {
-        return NextResponse.json(
-          {
-            error: "No active AdsGram Watch Ads attempt found.",
-            code: "WATCH_ATTEMPT_NOT_FOUND",
-          },
-          { status: 404 }
-        );
-      }
-
       if (
-        message.includes(
-          "WATCH_ATTEMPT_ALREADY_PROCESSED"
-        )
+        message.includes("WATCH_USER_NOT_FOUND") ||
+        message.includes("WATCH_ATTEMPT_NOT_FOUND")
       ) {
         return NextResponse.json(
-          {
-            error: "Watch Ads attempt was already processed.",
-            code: "WATCH_ATTEMPT_ALREADY_PROCESSED",
-          },
+          { error: "No matching Watch Ads attempt found." },
+          { status: 404 }
+        );
+      }
+
+      if (message.includes("WATCH_ATTEMPT_ALREADY_PROCESSED")) {
+        return NextResponse.json(
+          { error: "Watch Ads attempt was already processed." },
           { status: 409 }
         );
       }
 
       console.error(
-        "AdsGram Watch Ads confirmation RPC error:",
-        error
+        "AdsGram confirmation RPC failed:",
+        error.message
       );
 
       return NextResponse.json(
-        {
-          error: "Unable to confirm Watch Ads attempt.",
-          code: "WATCH_CONFIRMATION_FAILED",
-        },
+        { error: "Unable to confirm Watch Ads attempt." },
         { status: 500 }
       );
     }
 
-    const confirmation = Array.isArray(data)
-      ? data[0]
-      : data;
+    const confirmation = Array.isArray(data) ? data[0] : data;
 
     if (!confirmation) {
       return NextResponse.json(
-        {
-          error: "Watch Ads confirmation was not created.",
-          code: "WATCH_CONFIRMATION_FAILED",
-        },
-        { status: 500 }
+        { error: "Watch Ads confirmation was not created." },
+        { status: 409 }
       );
     }
 
@@ -130,13 +126,13 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error(
-      "AdsGram Watch Ads reward endpoint error:",
-      error
+      "AdsGram callback failed:",
+      error instanceof Error ? error.message : "Unknown error"
     );
 
     return NextResponse.json(
-      { error: "Invalid request." },
-      { status: 400 }
+      { error: "Internal server error." },
+      { status: 500 }
     );
   }
 }

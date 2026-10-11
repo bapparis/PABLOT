@@ -280,18 +280,17 @@ export default function TasksPage() {
               setTimeout(resolve, 1500)
             );
 
-            const telegramId =
-              webApp?.initDataUnsafe?.user?.id;
-
-            if (!telegramId) {
-              continue;
-            }
-
             const rewardResponse = await fetch(
-              `/api/tasks/watch/adsgram/reward?userid=${encodeURIComponent(
-                String(telegramId)
-              )}`,
+              "/api/tasks/watch/adsgram/status",
               {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  initData,
+                  attemptId,
+                }),
                 cache: "no-store",
               }
             );
